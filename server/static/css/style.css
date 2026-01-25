@@ -158,21 +158,50 @@ body {
     padding: 2rem;
 }
 
-.video-wrapper {
+/* Shaka Player container */
+#video-container {
     position: relative;
-    width: 100%;
+    width: 75vw;
     max-width: 1280px;
     background: #000;
     border-radius: 4px;
     overflow: hidden;
 }
 
-.video-wrapper video {
+#video-container video {
     width: 100%;
     display: block;
     aspect-ratio: 16/9;
     background: #000;
-    cursor: pointer;
+}
+
+/* Stream waiting overlay */
+.stream-waiting {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.stream-waiting.hidden {
+    display: none;
+}
+
+.waiting-content {
+    text-align: center;
+    color: var(--text);
+}
+
+.waiting-content p {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: var(--text-muted);
 }
 
 /* Picture-in-Picture Overlay Button */
@@ -628,35 +657,18 @@ body {
 }
 
 /* Fullscreen Styles */
-.video-wrapper:fullscreen,
-.video-wrapper:-webkit-full-screen {
+#video-container:fullscreen,
+#video-container:-webkit-full-screen {
+    width: 100vw;
     max-width: none;
     border-radius: 0;
-    width: 100vw;
-    height: 100vh;
 }
 
-.video-wrapper:fullscreen video,
-.video-wrapper:-webkit-full-screen video {
+#video-container:fullscreen video,
+#video-container:-webkit-full-screen video {
     height: 100vh;
     aspect-ratio: auto;
     object-fit: contain;
-}
-
-.video-wrapper:fullscreen .player-controls,
-.video-wrapper:-webkit-full-screen .player-controls {
-    padding-bottom: 10px;
-}
-
-.video-wrapper.is-fullscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    max-width: none;
-    border-radius: 0;
-    z-index: 9999;
 }
 
 /* Responsive - Tablet */
@@ -677,56 +689,15 @@ body {
         padding: 2rem;
     }
 
-    .control-btn {
-        width: 36px;
-        height: 36px;
-    }
-
-    .control-btn svg {
-        width: 22px;
-        height: 22px;
-    }
-
-    .progress-bar {
-        height: 5px;
-    }
-
-    .progress-container:hover .progress-bar {
-        height: 7px;
-    }
-
-    .progress-handle {
-        width: 16px;
-        height: 16px;
-        transform: translate(-50%, -50%) scale(1);
+    #video-container {
+        width: 90vw;
     }
 }
 
 /* Responsive - Mobile */
 @media (max-width: 480px) {
-    .volume-slider-container {
-        display: none;
-    }
-
-    .control-btn {
-        width: 40px;
-        height: 40px;
-    }
-
-    .live-btn {
-        padding: 6px 10px;
-    }
-
-    .live-text {
-        font-size: 12px;
-    }
-
-    .time-behind {
-        font-size: 12px;
-    }
-
-    .progress-container {
-        padding: 10px;
+    #video-container {
+        width: 95vw;
     }
 }
 

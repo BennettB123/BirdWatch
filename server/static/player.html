@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BirdWatch - Live Stream</title>
     <link rel="stylesheet" href="/birdwatch/static/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/controls.css">
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.compiled.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.ui.js"></script>
 </head>
 <body>
     <div class="player-container">
@@ -28,62 +30,14 @@
         </header>
 
         <main class="player-main">
-            <div class="video-wrapper" id="video-wrapper">
-                <video id="video" autoplay muted playsinline></video>
-
-                <button class="pip-overlay-btn" id="pip-overlay-btn" aria-label="Picture-in-Picture" style="display: none;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2" />
-                        <rect x="13" y="11" width="8" height="5" rx="1" fill="currentColor" />
-                    </svg>
-                </button>
-
-                <div id="status-overlay" class="status-overlay">
-                    <div class="status-content">
+            <div id="video-container" data-shaka-player-container>
+                <video id="video" data-shaka-player autoplay muted playsinline></video>
+                <div id="stream-waiting" class="stream-waiting">
+                    <div class="waiting-content">
                         <div class="spinner"></div>
-                        <p id="status-message">Connecting to stream...</p>
+                        <p>Waiting for stream to start...</p>
                     </div>
                 </div>
-
-                <div class="player-controls" id="player-controls">
-                    <div class="progress-container" id="progress-container">
-                        <div class="progress-bar" id="progress-bar">
-                            <div class="progress-buffered" id="progress-buffered"></div>
-                            <div class="progress-played" id="progress-played"></div>
-                            <div class="progress-handle" id="progress-handle"></div>
-                        </div>
-                        <div class="progress-tooltip" id="progress-tooltip">0:00</div>
-                    </div>
-                    <div class="controls-bar">
-                        <div class="controls-left">
-                            <button class="control-btn" id="play-pause-btn" aria-label="Play/Pause">
-                                <svg class="icon-play" viewBox="0 0 20 20"><path d="M5 3.804v12.392a.5.5 0 0 0 .771.42l9.992-6.196a.5.5 0 0 0 0-.84L5.771 3.384a.5.5 0 0 0-.771.42z"/></svg>
-                                <svg class="icon-pause" viewBox="0 0 20 20"><path d="M4 3h4v14H4V3zm8 0h4v14h-4V3z"/></svg>
-                            </button>
-                            <div class="live-indicator" id="live-indicator">
-                                <button class="live-btn" id="live-btn">
-                                    <span class="live-dot"></span>
-                                    <span class="live-text">LIVE</span>
-                                </button>
-                                <span class="time-behind" id="time-behind"></span>
-                            </div>
-                        </div>
-                        <div class="controls-right">
-                            <button class="control-btn" id="fullscreen-btn" aria-label="Fullscreen">
-                                <svg class="icon-fullscreen" viewBox="0 0 20 20"><path d="M3 3h5v2H5v3H3V3zm9 0h5v5h-2V5h-3V3zM3 12v5h5v-2H5v-3H3zm14 0v3h-3v2h5v-5h-2z"/></svg>
-                                <svg class="icon-exit-fullscreen" viewBox="0 0 20 20"><path d="M8 3v5H3V6h3V3h2zm4 0h2v3h3v2h-5V3zM3 12h5v5H6v-3H3v-2zm9 5v-5h5v2h-3v3h-2z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="stream-info">
-                <div id="stream-status" class="stream-status">
-                    <span class="status-indicator offline"></span>
-                    <span id="status-text">Offline</span>
-                </div>
-                <div id="quality-info" class="quality-info"></div>
             </div>
         </main>
 
