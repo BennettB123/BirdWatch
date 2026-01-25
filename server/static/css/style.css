@@ -228,6 +228,11 @@ body {
     opacity: 0.7;
 }
 
+/* Set Shaka Player controls fade animation */
+.shaka-controls-container {
+    transition: opacity 0.2s ease-in-out !important;
+}
+
 /* Picture-in-Picture Overlay Button */
 .pip-overlay-btn {
     position: absolute;

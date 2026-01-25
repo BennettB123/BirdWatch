@@ -161,6 +161,22 @@
 
         if (ui.isMobile()) {
             ui.configure({ fadeDelay: 2 });
+
+            // On mobile, allow tapping to hide controls immediately if they're showing
+            const controls = ui.getControls();
+            videoContainer.addEventListener('touchend', function(e) {
+                if (e.target.closest('.shaka-controls-button-panel')) {
+                    return;
+                }
+
+                if (controls.isOpaque()) {
+                    const controlsContainer = videoContainer.querySelector('.shaka-controls-container');
+                    if (controlsContainer && controlsContainer.hasAttribute('shown')) {
+                        controlsContainer.removeAttribute('shown');
+                        e.stopPropagation();
+                    }
+                }
+            }, { capture: true });
         }
 
         // Configure player with retry parameters for both manifest and segments
