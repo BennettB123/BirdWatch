@@ -67,6 +67,54 @@
         }
     }
 
+    // Custom Rewind Button
+    class RewindButton extends shaka.ui.Element {
+        constructor(parent, controls) {
+            super(parent, controls);
+
+            this.button_ = document.createElement('button');
+            this.button_.classList.add('shaka-rewind-button');
+            this.button_.classList.add('material-icons-round');
+            this.button_.textContent = 'replay_5';
+            this.button_.ariaLabel = 'Rewind 5 seconds';
+            this.parent.appendChild(this.button_);
+
+            this.eventManager.listen(this.button_, 'click', () => {
+                this.video.currentTime = Math.max(0, this.video.currentTime - 5);
+            });
+        }
+    }
+
+    RewindButton.Factory = class {
+        create(rootElement, controls) {
+            return new RewindButton(rootElement, controls);
+        }
+    };
+
+    // Custom Fast Forward Button
+    class FastForwardButton extends shaka.ui.Element {
+        constructor(parent, controls) {
+            super(parent, controls);
+
+            this.button_ = document.createElement('button');
+            this.button_.classList.add('shaka-fast-forward-button');
+            this.button_.classList.add('material-icons-round');
+            this.button_.textContent = 'forward_5';
+            this.button_.ariaLabel = 'Fast forward 5 seconds';
+            this.parent.appendChild(this.button_);
+
+            this.eventManager.listen(this.button_, 'click', () => {
+                this.video.currentTime = Math.min(this.video.duration || Infinity, this.video.currentTime + 5);
+            });
+        }
+    }
+
+    FastForwardButton.Factory = class {
+        create(rootElement, controls) {
+            return new FastForwardButton(rootElement, controls);
+        }
+    };
+
     // Initialize Shaka Player with UI
     function initPlayer() {
         console.log('[DEBUG] initPlayer() called');
@@ -84,6 +132,10 @@
             return;
         }
 
+        // Register custom UI elements
+        shaka.ui.Controls.registerElement('rewind', new RewindButton.Factory());
+        shaka.ui.Controls.registerElement('fast_forward', new FastForwardButton.Factory());
+
         // Create new Shaka Player and attach to video element
         player = new shaka.Player(video);
 
@@ -96,6 +148,8 @@
             addBigPlayButton: true,
             controlPanelElements: [
                 'play_pause',
+                'rewind',
+                'fast_forward',
                 'time_and_duration',
                 'spacer',
 								'picture_in_picture',
