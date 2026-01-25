@@ -199,6 +199,7 @@ func (c *Config) ReloadAllowedEmails() error {
 }
 
 func (c *Config) IsEmailAllowed(email string) bool {
+	c.ReloadAllowedEmails()
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	c.emailsMu.RLock()
