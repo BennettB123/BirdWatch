@@ -35,9 +35,6 @@
     const playPauseBtn = document.getElementById('play-pause-btn');
     const liveBtn = document.getElementById('live-btn');
     const timeBehind = document.getElementById('time-behind');
-    const muteBtn = document.getElementById('mute-btn');
-    const volumeControl = document.getElementById('volume-control');
-    const volumeSlider = document.getElementById('volume-slider');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
@@ -174,23 +171,6 @@
         }
     }
 
-    // Update volume/mute button state
-    function updateVolumeButton() {
-        const vol = video.volume;
-        const muted = video.muted;
-
-        muteBtn.classList.remove('is-muted', 'volume-low');
-
-        if (muted || vol === 0) {
-            muteBtn.classList.add('is-muted');
-        } else if (vol < 0.5) {
-            muteBtn.classList.add('volume-low');
-        }
-
-        // Update slider position
-        volumeSlider.value = muted ? 0 : vol;
-    }
-
     // Update fullscreen button state
     function updateFullscreenButton() {
         const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
@@ -282,19 +262,6 @@
         }
     }
 
-    // Toggle mute
-    function toggleMute() {
-        video.muted = !video.muted;
-        updateVolumeButton();
-    }
-
-    // Set volume
-    function setVolume(value) {
-        video.volume = value;
-        video.muted = value === 0;
-        updateVolumeButton();
-    }
-
     // Toggle fullscreen
     function toggleFullscreen() {
         if (document.fullscreenElement || document.webkitFullscreenElement) {
@@ -324,22 +291,6 @@
 
         // Live button
         liveBtn.addEventListener('click', goToLive);
-
-        // Volume control
-        muteBtn.addEventListener('click', toggleMute);
-
-        volumeSlider.addEventListener('input', function() {
-            setVolume(parseFloat(this.value));
-        });
-
-        // Keep volume slider open while interacting
-        volumeSlider.addEventListener('mousedown', function() {
-            volumeControl.classList.add('active');
-        });
-
-        document.addEventListener('mouseup', function() {
-            volumeControl.classList.remove('active');
-        });
 
         // Fullscreen
         fullscreenBtn.addEventListener('click', toggleFullscreen);
@@ -406,7 +357,6 @@
         video.addEventListener('play', updatePlayPauseButton);
         video.addEventListener('pause', updatePlayPauseButton);
         video.addEventListener('timeupdate', updateProgress);
-        video.addEventListener('volumechange', updateVolumeButton);
 
         // Fullscreen change
         document.addEventListener('fullscreenchange', updateFullscreenButton);
@@ -469,17 +419,6 @@
                         video.currentTime = newTime;
                     }
                     break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    setVolume(Math.min(1, video.volume + 0.1));
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    setVolume(Math.max(0, video.volume - 0.1));
-                    break;
-                case 'm':
-                    toggleMute();
-                    break;
                 case 'f':
                     toggleFullscreen();
                     break;
@@ -489,7 +428,6 @@
 
         // Initial states
         updatePlayPauseButton();
-        updateVolumeButton();
         showControls();
     }
 
