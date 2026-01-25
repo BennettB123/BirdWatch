@@ -101,6 +101,7 @@
 								'picture_in_picture',
                 'fullscreen',
             ],
+            fadeDelay: 3,
         };
         ui.configure(uiConfig);
 
