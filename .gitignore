@@ -1,1 +1,87 @@
+# Secrets and credentials
 server/google_auth.json
+server/allowed_emails.txt
+.env
+.env.local
+.env.*.local
+
+# Go build artifacts
+server/birdwatch
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Deployment files
+server/deploy/
+raspberrypi/deploy/
+
+# Utils
+server/utils/
+raspberrypi/utils/
+
+# Go test artifacts
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace
+go.work
+go.work.sum
+
+# Go vendor (if used)
+vendor/
+
+# HLS segments
+*.m3u8
+*.ts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Claude
+.claude/

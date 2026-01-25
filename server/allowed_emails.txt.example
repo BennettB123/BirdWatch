@@ -1,0 +1,7 @@
+# Allowed email addresses for BirdWatch
+# One email per line, lines starting with # are comments
+# This file is read on the authentication check (no restart needed).
+
+# Example:
+user@gmail.com
+another.user@example.com

@@ -1,0 +1,40 @@
+package middleware
+
+import (
+	"net/http"
+
+	"birdwatch/config"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+)
+
+func RequireAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		email := session.Get("email")
+
+		if email == nil {
+			basePath := config.AppConfig.BasePath
+			c.Redirect(http.StatusFound, basePath+"/")
+			c.Abort()
+			return
+		}
+
+		// Store email in context for handlers
+		c.Set("email", email.(string))
+		c.Next()
+	}
+}
+
+func RequirePiSecret() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		secret := c.GetHeader("X-Pi-Secret")
+		if secret == "" || secret != config.AppConfig.PiSecret {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
