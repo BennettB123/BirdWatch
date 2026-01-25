@@ -155,9 +155,13 @@
 								'picture_in_picture',
                 'fullscreen',
             ],
-            fadeDelay: 3,
         };
+
         ui.configure(uiConfig);
+
+        if (ui.isMobile()) {
+            ui.configure({ fadeDelay: 2 });
+        }
 
         // Configure player with retry parameters for both manifest and segments
         player.configure({
