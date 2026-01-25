@@ -175,6 +175,55 @@ body {
     cursor: pointer;
 }
 
+/* Picture-in-Picture Overlay Button */
+.pip-overlay-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    display: none; /* Hidden by default on desktop */
+    align-items: center;
+    justify-content: center;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+}
+
+.pip-overlay-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.pip-overlay-btn:active {
+    transform: scale(0.95);
+    background: rgba(0, 0, 0, 0.75);
+}
+
+/* Show PiP button only on touch devices, and only when controls are visible */
+@media (hover: none) and (pointer: coarse) {
+    .pip-overlay-btn {
+        display: flex;
+    }
+
+    .video-wrapper.controls-visible .pip-overlay-btn {
+        opacity: 0.9;
+    }
+
+    .pip-overlay-btn:active {
+        opacity: 1;
+    }
+}
+
 /* Status Overlay */
 .status-overlay {
     position: absolute;

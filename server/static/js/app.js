@@ -35,6 +35,7 @@
     const playPauseBtn = document.getElementById('play-pause-btn');
     const liveBtn = document.getElementById('live-btn');
     const timeBehind = document.getElementById('time-behind');
+    const pipOverlayBtn = document.getElementById('pip-overlay-btn');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
@@ -42,6 +43,9 @@
     const progressBuffered = document.getElementById('progress-buffered');
     const progressHandle = document.getElementById('progress-handle');
     const progressTooltip = document.getElementById('progress-tooltip');
+
+    // Detect if device has touch capability
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
     // Load user info
     async function loadUserInfo() {
@@ -183,6 +187,16 @@
         }
     }
 
+    // Update PiP button visibility
+    function updatePipButton() {
+        // Hide PiP button when in PiP mode (since controls are hidden)
+        if (document.pictureInPictureElement === video) {
+            pipOverlayBtn.style.display = 'none';
+        } else {
+            pipOverlayBtn.style.display = 'flex';
+        }
+    }
+
     // Control visibility
     function showControls() {
         playerControls.classList.add('visible');
@@ -262,20 +276,59 @@
         }
     }
 
-    // Toggle fullscreen
+    // Toggle fullscreen - works on all mobile and desktop browsers
     function toggleFullscreen() {
+        // Try to exit fullscreen if already in fullscreen mode
         if (document.fullscreenElement || document.webkitFullscreenElement) {
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
             }
-        } else {
-            if (videoWrapper.requestFullscreen) {
-                videoWrapper.requestFullscreen();
-            } else if (videoWrapper.webkitRequestFullscreen) {
+            return;
+        }
+
+        // Try standard fullscreen API first (works on most modern browsers)
+        if (videoWrapper.requestFullscreen) {
+            videoWrapper.requestFullscreen().catch(function(err) {
+                console.log('Standard fullscreen failed, trying webkit');
+                tryWebkitFullscreen();
+            });
+        } else if (videoWrapper.webkitRequestFullscreen) {
+            tryWebkitFullscreen();
+        } else if (video.webkitEnterFullscreen) {
+            // Fallback for iOS Safari - use native video fullscreen
+            video.webkitEnterFullscreen();
+        }
+    }
+
+    function tryWebkitFullscreen() {
+        // Try webkit fullscreen with all possible parameters
+        try {
+            if (videoWrapper.webkitRequestFullscreen) {
                 videoWrapper.webkitRequestFullscreen();
+            } else if (videoWrapper.webkitEnterFullscreen) {
+                videoWrapper.webkitEnterFullscreen();
             }
+        } catch (err) {
+            console.log('Webkit fullscreen failed:', err);
+            // Last resort: try native video fullscreen
+            if (video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen();
+            }
+        }
+    }
+
+    // Toggle Picture-in-Picture
+    async function togglePip() {
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                await video.requestPictureInPicture();
+            }
+        } catch (err) {
+            console.error('PiP failed:', err);
         }
     }
 
@@ -283,18 +336,40 @@
     function initControls() {
         // Play/pause
         playPauseBtn.addEventListener('click', togglePlayPause);
+
+        // Video click/tap behavior
         video.addEventListener('click', function(e) {
             if (e.target === video) {
-                togglePlayPause();
+                if (isTouchDevice) {
+                    // On mobile, toggle controls
+                    if (playerControls.classList.contains('visible')) {
+                        hideControls();
+                    } else {
+                        showControls();
+                    }
+                } else {
+                    // On desktop, toggle play/pause
+                    togglePlayPause();
+                }
             }
         });
 
         // Live button
         liveBtn.addEventListener('click', goToLive);
 
+        // Picture-in-Picture - show overlay button if supported
+        if (document.pictureInPictureEnabled && !video.disablePictureInPicture) {
+            pipOverlayBtn.style.display = 'flex';
+            pipOverlayBtn.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent triggering video click
+                togglePip();
+            });
+            video.addEventListener('enterpictureinpicture', updatePipButton);
+            video.addEventListener('leavepictureinpicture', updatePipButton);
+        }
+
         // Fullscreen
         fullscreenBtn.addEventListener('click', toggleFullscreen);
-        video.addEventListener('dblclick', toggleFullscreen);
 
         // Progress bar - mouse events
         progressContainer.addEventListener('mousedown', function(e) {
@@ -369,29 +444,10 @@
             if (!isSeeking) hideControls();
         });
 
-        // Mobile: tap to toggle controls
-        let lastTap = 0;
-        videoWrapper.addEventListener('touchstart', function(e) {
-            const now = Date.now();
-            const timeSinceLastTap = now - lastTap;
-            lastTap = now;
-
-            // Ignore if tapping on controls
-            if (e.target.closest('.player-controls')) return;
-
-            // Double tap for fullscreen
-            if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                toggleFullscreen();
-                return;
-            }
-
-            // Single tap to toggle controls
-            if (playerControls.classList.contains('visible')) {
-                hideControls();
-            } else {
-                showControls();
-            }
-        }, { passive: true });
+        // Desktop: double-click for fullscreen
+        if (!isTouchDevice) {
+            video.addEventListener('dblclick', toggleFullscreen);
+        }
 
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
@@ -428,6 +484,7 @@
 
         // Initial states
         updatePlayPauseButton();
+        updatePipButton();
         showControls();
     }
 
