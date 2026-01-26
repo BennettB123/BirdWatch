@@ -52,18 +52,14 @@
 
     // Show/hide waiting indicator
     function showWaiting() {
-        console.log('[DEBUG] showWaiting() called');
         if (streamWaiting) {
             streamWaiting.classList.remove('hidden');
-            console.log('[DEBUG] Waiting indicator shown');
         }
     }
 
     function hideWaiting() {
-        console.log('[DEBUG] hideWaiting() called');
         if (streamWaiting) {
             streamWaiting.classList.add('hidden');
-            console.log('[DEBUG] Waiting indicator hidden');
         }
     }
 
@@ -117,7 +113,6 @@
 
     // Initialize Shaka Player with UI
     function initPlayer() {
-        console.log('[DEBUG] initPlayer() called');
         const streamUrl = BASE_PATH + '/api/stream/playlist.m3u8';
 
         // Show waiting indicator
@@ -203,13 +198,12 @@
 
         // Hide waiting indicator when stream loads
         video.addEventListener('loadeddata', function() {
-            console.log('[DEBUG] Stream loaded successfully');
             hideWaiting();
         }, { once: true });
 
         // Load the stream - Shaka will handle retries automatically
         player.load(streamUrl).catch(function(error) {
-            console.log('[DEBUG] Load failed after all retries:', error);
+            console.error('Load failed after all retries:', error);
         });
     }
 
