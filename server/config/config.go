@@ -40,6 +40,8 @@ type Config struct {
 	BasePath           string
 	OAuthConfig        *oauth2.Config
 	GoogleAuthFile     string
+	PushoverAPIToken   string
+	PushoverUserKey    string
 
 	emailsMu      sync.RWMutex
 	allowedEmails map[string]struct{}
@@ -63,6 +65,8 @@ func Load() *Config {
 		Port:               requireEnv("BIRDWATCH_PORT"),
 		BasePath:           requireEnv("BIRDWATCH_BASE_PATH"),
 		GoogleAuthFile:     requireEnv("BIRDWATCH_GOOGLE_AUTH_FILE"),
+		PushoverAPIToken:   os.Getenv("BIRDWATCH_PUSHOVER_API_TOKEN"),
+		PushoverUserKey:    os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
 		allowedEmails:      make(map[string]struct{}),
 	}
 
@@ -213,4 +217,8 @@ func (c *Config) GetAllowedEmailCount() int {
 	c.emailsMu.RLock()
 	defer c.emailsMu.RUnlock()
 	return len(c.allowedEmails)
+}
+
+func (c *Config) IsPushoverEnabled() bool {
+	return c.PushoverAPIToken != "" && c.PushoverUserKey != ""
 }
