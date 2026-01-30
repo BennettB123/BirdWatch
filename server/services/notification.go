@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
+
+	"birdwatch/config"
 )
 
 const pushoverAPIURL = "https://api.pushover.net/1/messages.json"
@@ -21,9 +24,31 @@ const (
 
 // NotificationService handles sending push notifications via Pushover
 type NotificationService struct {
-	apiToken string
-	userKey  string
-	client   *http.Client
+	apiToken     string
+	userKey      string
+	adminUserKey string
+	client       *http.Client
+}
+
+var (
+	notificationService *NotificationService
+	notificationOnce    sync.Once
+)
+
+// GetNotificationService returns the singleton NotificationService instance.
+// Returns nil if Pushover is not configured.
+func GetNotificationService() *NotificationService {
+	notificationOnce.Do(func() {
+		if config.AppConfig.IsPushoverEnabled() {
+			notificationService = &NotificationService{
+				apiToken:     config.AppConfig.PushoverAPIToken,
+				userKey:      config.AppConfig.PushoverUserKey,
+				adminUserKey: config.AppConfig.PushoverAdminUserKey,
+				client:       &http.Client{},
+			}
+		}
+	})
+	return notificationService
 }
 
 // NotificationOptions configures a notification message
@@ -42,24 +67,28 @@ type PushoverResponse struct {
 	Errors  []string `json:"errors,omitempty"`
 }
 
-// NewNotificationService creates a new notification service
-func NewNotificationService(apiToken, userKey string) *NotificationService {
-	return &NotificationService{
-		apiToken: apiToken,
-		userKey:  userKey,
-		client:   &http.Client{},
-	}
+// SendNotification sends a push notification via Pushover to the regular user
+func (service *NotificationService) SendNotification(opts NotificationOptions) error {
+	return service.sendNotification(service.userKey, opts)
 }
 
-// SendNotification sends a push notification via Pushover
-func (service *NotificationService) SendNotification(opts NotificationOptions) error {
+// SendAdminNotification sends a push notification via Pushover to the admin user
+func (service *NotificationService) SendAdminNotification(opts NotificationOptions) error {
+	if service.adminUserKey == "" {
+		return fmt.Errorf("admin user key not configured")
+	}
+	return service.sendNotification(service.adminUserKey, opts)
+}
+
+// sendNotification is the internal method that sends notifications to a specific user
+func (service *NotificationService) sendNotification(userKey string, opts NotificationOptions) error {
 	if opts.Message == "" {
 		return fmt.Errorf("message is required")
 	}
 
 	payload := map[string]interface{}{
 		"token":   service.apiToken,
-		"user":    service.userKey,
+		"user":    userKey,
 		"message": opts.Message,
 	}
 

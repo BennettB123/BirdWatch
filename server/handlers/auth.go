@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -18,8 +19,10 @@ import (
 
 type GoogleUserInfo struct {
 	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
+	EmailVerified bool   `json:"verified_email"`
 	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
 	Picture       string `json:"picture"`
 }
 
@@ -98,6 +101,18 @@ func HandleCallback(c *gin.Context) {
 	// Check if email is allowed
 	if !config.AppConfig.IsEmailAllowed(userInfo.Email) {
 		log.Printf("Unauthorized email attempted login: %s", userInfo.Email)
+
+		if notifier := services.GetNotificationService(); notifier != nil {
+			message := fmt.Sprintf("Unauthorized login attempt\n\nEmail: %s\nName: %s",
+				userInfo.Email,
+				userInfo.Name)
+			go notifier.SendAdminNotification(services.NotificationOptions{
+				Title:    "BirdWatch Login Failed",
+				Message:  message,
+				Priority: services.PriorityHigh,
+			})
+		}
+
 		c.Redirect(http.StatusFound, basePath+"/?error=unauthorized")
 		return
 	}
@@ -123,6 +138,19 @@ func HandleCallback(c *gin.Context) {
 	services.GetSessionManager().AddUser(userInfo.Email)
 
 	log.Printf("User logged in: %s", userInfo.Email)
+
+	// Send notification for successful login
+	if notifier := services.GetNotificationService(); notifier != nil {
+		message := fmt.Sprintf("User logged in\n\nEmail: %s\nName: %s",
+			userInfo.Email,
+			userInfo.Name)
+		go notifier.SendAdminNotification(services.NotificationOptions{
+			Title:    "BirdWatch Login Successful",
+			Message:  message,
+			Priority: services.PriorityNormal,
+		})
+	}
+
 	c.Redirect(http.StatusFound, basePath+"/player")
 }
 

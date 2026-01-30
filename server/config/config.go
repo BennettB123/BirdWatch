@@ -28,20 +28,21 @@ type GoogleAuthConfig struct {
 }
 
 type Config struct {
-	SessionSecret      string
-	PiSecret           string
-	StreamKey          string
-	AllowedEmailsFile  string
-	HLSDir             string
-	HLSSegmentDuration int
-	HLSListSize        int
-	RTMPPort           string
-	Port               string
-	BasePath           string
-	OAuthConfig        *oauth2.Config
-	GoogleAuthFile     string
-	PushoverAPIToken   string
-	PushoverUserKey    string
+	SessionSecret        string
+	PiSecret             string
+	StreamKey            string
+	AllowedEmailsFile    string
+	HLSDir               string
+	HLSSegmentDuration   int
+	HLSListSize          int
+	RTMPPort             string
+	Port                 string
+	BasePath             string
+	OAuthConfig          *oauth2.Config
+	GoogleAuthFile       string
+	PushoverAPIToken     string
+	PushoverUserKey      string
+	PushoverAdminUserKey string
 
 	emailsMu      sync.RWMutex
 	allowedEmails map[string]struct{}
@@ -54,20 +55,21 @@ func Load() *Config {
 	godotenv.Load()
 
 	config := &Config{
-		SessionSecret:      requireEnv("BIRDWATCH_SESSION_SECRET"),
-		PiSecret:           requireEnv("BIRDWATCH_PI_SECRET"),
-		StreamKey:          requireEnv("BIRDWATCH_STREAM_KEY"),
-		AllowedEmailsFile:  requireEnv("BIRDWATCH_ALLOWED_EMAILS_FILE"),
-		HLSDir:             requireEnv("BIRDWATCH_HLS_DIR"),
-		HLSSegmentDuration: requireEnvInt("BIRDWATCH_HLS_SEGMENT_DURATION"),
-		HLSListSize:        requireEnvInt("BIRDWATCH_HLS_LIST_SIZE"),
-		RTMPPort:           requireEnv("BIRDWATCH_RTMP_PORT"),
-		Port:               requireEnv("BIRDWATCH_PORT"),
-		BasePath:           requireEnv("BIRDWATCH_BASE_PATH"),
-		GoogleAuthFile:     requireEnv("BIRDWATCH_GOOGLE_AUTH_FILE"),
-		PushoverAPIToken:   os.Getenv("BIRDWATCH_PUSHOVER_API_TOKEN"),
-		PushoverUserKey:    os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
-		allowedEmails:      make(map[string]struct{}),
+		SessionSecret:        requireEnv("BIRDWATCH_SESSION_SECRET"),
+		PiSecret:             requireEnv("BIRDWATCH_PI_SECRET"),
+		StreamKey:            requireEnv("BIRDWATCH_STREAM_KEY"),
+		AllowedEmailsFile:    requireEnv("BIRDWATCH_ALLOWED_EMAILS_FILE"),
+		HLSDir:               requireEnv("BIRDWATCH_HLS_DIR"),
+		HLSSegmentDuration:   requireEnvInt("BIRDWATCH_HLS_SEGMENT_DURATION"),
+		HLSListSize:          requireEnvInt("BIRDWATCH_HLS_LIST_SIZE"),
+		RTMPPort:             requireEnv("BIRDWATCH_RTMP_PORT"),
+		Port:                 requireEnv("BIRDWATCH_PORT"),
+		BasePath:             requireEnv("BIRDWATCH_BASE_PATH"),
+		GoogleAuthFile:       requireEnv("BIRDWATCH_GOOGLE_AUTH_FILE"),
+		PushoverAPIToken:     os.Getenv("BIRDWATCH_PUSHOVER_API_TOKEN"),
+		PushoverUserKey:      os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
+		PushoverAdminUserKey: os.Getenv("BIRDWATCH_PUSHOVER_ADMIN_USER_KEY"),
+		allowedEmails:        make(map[string]struct{}),
 	}
 
 	// Load OAuth config from google_auth.json
@@ -221,4 +223,8 @@ func (c *Config) GetAllowedEmailCount() int {
 
 func (c *Config) IsPushoverEnabled() bool {
 	return c.PushoverAPIToken != "" && c.PushoverUserKey != ""
+}
+
+func (c *Config) IsPushoverAdminEnabled() bool {
+	return c.PushoverAPIToken != "" && c.PushoverAdminUserKey != ""
 }
