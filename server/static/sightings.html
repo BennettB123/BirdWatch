@@ -38,6 +38,7 @@
                     <h2 class="sightings-title">Sightings</h2>
                     <p class="sightings-count" id="sightings-count"></p>
                 </div>
+                <button id="select-mode-btn" class="select-mode-btn" onclick="toggleSelectMode()">Select</button>
             </div>
 
             <div id="sightings-grid" class="sightings-grid">
@@ -58,6 +59,36 @@
             <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
             <img id="lightbox-image" class="lightbox-image" src="" alt="Sighting">
             <div class="lightbox-info" id="lightbox-info"></div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulk-actions" class="bulk-actions">
+        <span class="bulk-actions-info"><span id="selected-count">0 selected</span></span>
+        <button class="bulk-delete-btn" onclick="confirmBulkDelete()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+            Delete Selected
+        </button>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="delete-modal">
+        <div class="delete-modal-content">
+            <svg class="delete-modal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <h3 class="delete-modal-title">Delete Sightings</h3>
+            <p class="delete-modal-message">Are you sure you want to delete <span id="delete-count">this sighting</span>? This action cannot be undone.</p>
+            <div class="delete-modal-actions">
+                <button class="delete-cancel-btn" onclick="closeDeleteModal()">Cancel</button>
+                <button class="delete-confirm-btn" onclick="executeDelete()">Delete</button>
+            </div>
         </div>
     </div>
 
