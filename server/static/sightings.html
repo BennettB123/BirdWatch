@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BirdWatch - Live Stream</title>
+    <title>BirdWatch - Sightings</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/birdwatch/static/favicons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/birdwatch/static/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/birdwatch/static/favicons/favicon-16x16.png">
     <link rel="manifest" href="/birdwatch/static/favicons/site.webmanifest">
     <link rel="stylesheet" href="/birdwatch/static/css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/controls.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Icons+Round">
-    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.compiled.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.ui.js"></script>
+    <link rel="stylesheet" href="/birdwatch/static/css/sightings.css">
 </head>
 <body>
-    <div class="player-container">
+    <div class="sightings-container">
         <header class="player-header">
             <div class="header-left">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -29,30 +26,42 @@
                 <h1>BirdWatch</h1>
             </div>
             <div class="header-right">
-                <a href="/birdwatch/sightings" class="logout-btn">Sightings</a>
+                <a href="/birdwatch/player" class="nav-link">Live Stream</a>
                 <span id="user-info" class="user-info"></span>
                 <a href="/birdwatch/auth/logout" class="logout-btn">Logout</a>
             </div>
         </header>
 
-        <main class="player-main">
-            <div id="video-container" data-shaka-player-container>
-                <video id="video" data-shaka-player autoplay muted playsinline></video>
-                <div id="stream-waiting" class="stream-waiting">
-                    <div class="waiting-content">
-                        <div class="spinner"></div>
-                        <p>Waiting for stream to start...</p>
-                    </div>
+        <main class="sightings-main">
+            <div class="sightings-header-bar">
+                <div>
+                    <h2 class="sightings-title">Sightings</h2>
+                    <p class="sightings-count" id="sightings-count"></p>
                 </div>
             </div>
+
+            <div id="sightings-grid" class="sightings-grid">
+                <div class="loading">Loading sightings...</div>
+            </div>
+
+            <button id="load-more" class="load-more" style="display: none;">Load More</button>
         </main>
 
         <footer class="player-footer">
-            <p>Bird Watching Live Stream</p>
+            <p>Bird Watching Sightings Gallery</p>
         </footer>
     </div>
 
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-content">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-image" class="lightbox-image" src="" alt="Sighting">
+            <div class="lightbox-info" id="lightbox-info"></div>
+        </div>
+    </div>
+
     <script src="/birdwatch/static/js/heartbeat.js"></script>
-    <script src="/birdwatch/static/js/app.js"></script>
+    <script src="/birdwatch/static/js/sightings.js"></script>
 </body>
 </html>

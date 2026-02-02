@@ -38,6 +38,7 @@ func main() {
 	// Initialize services
 	sessionMgr := services.GetSessionManager()
 	rtmpServer := services.GetRTMPServer(cfg.StreamKey, cfg.HLSDir)
+	_ = services.GetSightingService() // Initialize sighting service early to catch errors
 
 	// Start RTMP server
 	if err := rtmpServer.Start(cfg.RTMPPort); err != nil {
@@ -76,12 +77,15 @@ func main() {
 			auth.GET("/logout", handlers.HandleLogout)
 		}
 
-		// Pi status endpoint (requires Pi secret)
+		// Pi endpoints (requires Pi secret)
 		pi := base.Group("/api/pi")
 		pi.Use(middleware.RequirePiSecret())
 		{
 			pi.GET("/status", handlers.HandlePiStatus)
 		}
+
+		// Sightings endpoint for Pi to upload (requires Pi secret)
+		base.POST("/api/sightings", middleware.RequirePiSecret(), handlers.HandleCreateSighting)
 
 		// Protected routes (require authentication)
 		protected := base.Group("")
@@ -90,6 +94,11 @@ func main() {
 			// Player page
 			protected.GET("/player", func(c *gin.Context) {
 				c.File("./static/player.html")
+			})
+
+			// Sightings page
+			protected.GET("/sightings", func(c *gin.Context) {
+				c.File("./static/sightings.html")
 			})
 
 			// User info
@@ -102,6 +111,11 @@ func main() {
 				stream.GET("/playlist.m3u8", handlers.HandlePlaylist)
 				stream.GET("/:segment", handlers.HandleSegment)
 			}
+
+			// Sightings API endpoints
+			protected.GET("/api/sightings", handlers.HandleGetSightings)
+			protected.GET("/api/sightings/images/:filename", handlers.HandleGetSightingImage)
+			protected.DELETE("/api/sightings/:id", handlers.HandleDeleteSighting)
 
 			// Stream status (for debugging)
 			protected.GET("/api/stream/status", handlers.HandleStreamStatus)

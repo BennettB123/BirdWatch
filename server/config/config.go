@@ -43,6 +43,7 @@ type Config struct {
 	PushoverAPIToken     string
 	PushoverUserKey      string
 	PushoverAdminUserKey string
+	DataDir              string
 
 	emailsMu      sync.RWMutex
 	allowedEmails map[string]struct{}
@@ -69,6 +70,7 @@ func Load() *Config {
 		PushoverAPIToken:     os.Getenv("BIRDWATCH_PUSHOVER_API_TOKEN"),
 		PushoverUserKey:      os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
 		PushoverAdminUserKey: os.Getenv("BIRDWATCH_PUSHOVER_ADMIN_USER_KEY"),
+		DataDir:              requireEnv("BIRDWATCH_DATA_DIR"),
 		allowedEmails:        make(map[string]struct{}),
 	}
 

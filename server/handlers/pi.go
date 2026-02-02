@@ -15,8 +15,8 @@ func HandlePiStatus(c *gin.Context) {
 	hasActiveUsers := sessionMgr.HasActiveUsers()
 
 	c.JSON(http.StatusOK, gin.H{
-		"stream":      hasActiveUsers,
-		"user_count":  sessionMgr.GetActiveUserCount(),
+		"stream":     hasActiveUsers,
+		"user_count": sessionMgr.GetActiveUserCount(),
 	})
 }
 
@@ -25,8 +25,8 @@ func HandleStreamStatus(c *gin.Context) {
 	sessionMgr := services.GetSessionManager()
 
 	c.JSON(http.StatusOK, gin.H{
-		"active_users": sessionMgr.GetActiveUserCount(),
-		"users":        sessionMgr.GetActiveUsers(),
+		"active_users":  sessionMgr.GetActiveUserCount(),
+		"users":         sessionMgr.GetActiveUsers(),
 		"should_stream": sessionMgr.HasActiveUsers(),
 	})
 }

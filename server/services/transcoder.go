@@ -55,11 +55,11 @@ func (t *Transcoder) Start() error {
 	listSize := strconv.Itoa(config.AppConfig.HLSListSize)
 
 	args := []string{
-		"-f", "flv",           // Input format is FLV from RTMP
+		"-f", "flv", // Input format is FLV from RTMP
 		"-fflags", "nobuffer", // Reduce input buffering
 		"-i", "pipe:0",
-		"-c:v", "copy",        // Copy video codec (already h264 from Pi)
-		"-an",                 // No audio
+		"-c:v", "copy", // Copy video codec (already h264 from Pi)
+		"-an", // No audio
 		"-f", "hls",
 		"-hls_time", segmentDuration,
 		"-hls_list_size", listSize,

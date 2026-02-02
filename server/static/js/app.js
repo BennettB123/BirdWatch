@@ -1,217 +1,168 @@
+/**
+ * BirdWatch Player Module
+ * Handles video player functionality using Shaka Player
+ */
 (function () {
-	'use strict';
+    'use strict';
 
-	const BASE_PATH = '/birdwatch';
-	const HEARTBEAT_INTERVAL = 10000;
+    const BASE_PATH = '/birdwatch';
 
-	let player = null;
-	let ui = null;
-	let heartbeatTimer = null;
+    let player = null;
+    let ui = null;
 
-	// DOM Elements
-	const video = document.getElementById('video');
-	const videoContainer = document.getElementById('video-container');
-	const userInfo = document.getElementById('user-info');
-	const streamWaiting = document.getElementById('stream-waiting');
+    // DOM Elements
+    const video = document.getElementById('video');
+    const videoContainer = document.getElementById('video-container');
+    const streamWaiting = document.getElementById('stream-waiting');
 
-	// Load user info
-	async function loadUserInfo() {
-		try {
-			const response = await fetch(BASE_PATH + '/api/user');
-			if (response.ok) {
-				const user = await response.json();
-				userInfo.textContent = user.name || user.email || '';
-			}
-		} catch (err) {
-			console.error('Failed to load user info:', err);
-		}
-	}
+    // Show/hide waiting indicator
+    function showWaiting() {
+        if (streamWaiting) {
+            streamWaiting.classList.remove('hidden');
+        }
+    }
 
-	// Heartbeat
-	async function sendHeartbeat() {
-		try {
-			const response = await fetch(BASE_PATH + '/api/user/heartbeat', {
-				method: 'POST',
-				credentials: 'same-origin'
-			});
-			if (!response.ok && response.status === 401) {
-				window.location.href = BASE_PATH + '/';
-			}
-		} catch (err) {
-			console.error('Heartbeat failed:', err);
-		}
-	}
+    function hideWaiting() {
+        if (streamWaiting) {
+            streamWaiting.classList.add('hidden');
+        }
+    }
 
-	function startHeartbeat() {
-		if (heartbeatTimer) clearInterval(heartbeatTimer);
-		sendHeartbeat();
-		heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
-	}
+    // Custom Rewind Button
+    class RewindButton extends shaka.ui.Element {
+        constructor(parent, controls) {
+            super(parent, controls);
 
-	// Show/hide waiting indicator
-	function showWaiting() {
-		if (streamWaiting) {
-			streamWaiting.classList.remove('hidden');
-		}
-	}
+            this.button_ = document.createElement('button');
+            this.button_.classList.add('shaka-rewind-button');
+            this.button_.classList.add('material-icons-round');
+            this.button_.textContent = 'replay_5';
+            this.button_.ariaLabel = 'Rewind 5 seconds';
+            this.parent.appendChild(this.button_);
 
-	function hideWaiting() {
-		if (streamWaiting) {
-			streamWaiting.classList.add('hidden');
-		}
-	}
+            this.eventManager.listen(this.button_, 'click', () => {
+                this.video.currentTime = Math.max(0, this.video.currentTime - 5);
+            });
+        }
+    }
 
-	// Custom Rewind Button
-	class RewindButton extends shaka.ui.Element {
-		constructor(parent, controls) {
-			super(parent, controls);
+    RewindButton.Factory = class {
+        create(rootElement, controls) {
+            return new RewindButton(rootElement, controls);
+        }
+    };
 
-			this.button_ = document.createElement('button');
-			this.button_.classList.add('shaka-rewind-button');
-			this.button_.classList.add('material-icons-round');
-			this.button_.textContent = 'replay_5';
-			this.button_.ariaLabel = 'Rewind 5 seconds';
-			this.parent.appendChild(this.button_);
+    // Custom Fast Forward Button
+    class FastForwardButton extends shaka.ui.Element {
+        constructor(parent, controls) {
+            super(parent, controls);
 
-			this.eventManager.listen(this.button_, 'click', () => {
-				this.video.currentTime = Math.max(0, this.video.currentTime - 5);
-			});
-		}
-	}
+            this.button_ = document.createElement('button');
+            this.button_.classList.add('shaka-fast-forward-button');
+            this.button_.classList.add('material-icons-round');
+            this.button_.textContent = 'forward_5';
+            this.button_.ariaLabel = 'Fast forward 5 seconds';
+            this.parent.appendChild(this.button_);
 
-	RewindButton.Factory = class {
-		create(rootElement, controls) {
-			return new RewindButton(rootElement, controls);
-		}
-	};
+            this.eventManager.listen(this.button_, 'click', () => {
+                this.video.currentTime = Math.min(this.video.duration || Infinity, this.video.currentTime + 5);
+            });
+        }
+    }
 
-	// Custom Fast Forward Button
-	class FastForwardButton extends shaka.ui.Element {
-		constructor(parent, controls) {
-			super(parent, controls);
+    FastForwardButton.Factory = class {
+        create(rootElement, controls) {
+            return new FastForwardButton(rootElement, controls);
+        }
+    };
 
-			this.button_ = document.createElement('button');
-			this.button_.classList.add('shaka-fast-forward-button');
-			this.button_.classList.add('material-icons-round');
-			this.button_.textContent = 'forward_5';
-			this.button_.ariaLabel = 'Fast forward 5 seconds';
-			this.parent.appendChild(this.button_);
+    // Initialize Shaka Player with UI
+    function initPlayer() {
+        const streamUrl = BASE_PATH + '/api/stream/playlist.m3u8';
 
-			this.eventManager.listen(this.button_, 'click', () => {
-				this.video.currentTime = Math.min(this.video.duration || Infinity, this.video.currentTime + 5);
-			});
-		}
-	}
+        // Show waiting indicator
+        showWaiting();
 
-	FastForwardButton.Factory = class {
-		create(rootElement, controls) {
-			return new FastForwardButton(rootElement, controls);
-		}
-	};
+        // Install Shaka polyfills
+        shaka.polyfill.installAll();
 
-	// Initialize Shaka Player with UI
-	function initPlayer() {
-		const streamUrl = BASE_PATH + '/api/stream/playlist.m3u8';
+        // Check if browser is supported
+        if (!shaka.Player.isBrowserSupported()) {
+            console.error('Browser not supported');
+            return;
+        }
 
-		// Show waiting indicator
-		showWaiting();
+        // Register custom UI elements
+        shaka.ui.Controls.registerElement('rewind', new RewindButton.Factory());
+        shaka.ui.Controls.registerElement('fast_forward', new FastForwardButton.Factory());
 
-		// Install Shaka polyfills
-		shaka.polyfill.installAll();
+        // Create new Shaka Player and attach to video element
+        player = new shaka.Player(video);
 
-		// Check if browser is supported
-		if (!shaka.Player.isBrowserSupported()) {
-			console.error('Browser not supported');
-			return;
-		}
+        // Create UI with default controls
+        ui = new shaka.ui.Overlay(player, videoContainer, video);
 
-		// Register custom UI elements
-		shaka.ui.Controls.registerElement('rewind', new RewindButton.Factory());
-		shaka.ui.Controls.registerElement('fast_forward', new FastForwardButton.Factory());
+        // Configure UI
+        const uiConfig = {
+            addSeekBar: true,
+            addBigPlayButton: true,
+            controlPanelElements: [
+                'play_pause',
+                'rewind',
+                'fast_forward',
+                'time_and_duration',
+                'spacer',
+                'picture_in_picture',
+                'fullscreen',
+            ],
+        };
 
-		// Create new Shaka Player and attach to video element
-		player = new shaka.Player(video);
+        ui.configure(uiConfig);
 
-		// Create UI with default controls
-		ui = new shaka.ui.Overlay(player, videoContainer, video);
+        if (ui.isMobile()) {
+            ui.configure({ fadeDelay: 2 });
+        }
 
-		// Configure UI
-		const uiConfig = {
-			addSeekBar: true,
-			addBigPlayButton: true,
-			controlPanelElements: [
-				'play_pause',
-				'rewind',
-				'fast_forward',
-				'time_and_duration',
-				'spacer',
-				'picture_in_picture',
-				'fullscreen',
-			],
-		};
+        // Configure player with retry parameters for both manifest and segments
+        player.configure({
+            manifest: {
+                retryParameters: {
+                    timeout: 30000,
+                    baseDelay: 1000,
+                    maxAttempts: Infinity,
+                }
+            },
+            streaming: {
+                bufferingGoal: 30,
+                rebufferingGoal: 2,
+                bufferBehind: 90,
+                lowLatencyMode: true,
+                retryParameters: {
+                    timeout: 30000,
+                    baseDelay: 500,
+                    maxAttempts: Infinity,
+                }
+            }
+        });
 
-		ui.configure(uiConfig);
+        // Hide waiting indicator when stream loads
+        video.addEventListener('loadeddata', function () {
+            hideWaiting();
+        }, { once: true });
 
-		if (ui.isMobile()) {
-			ui.configure({ fadeDelay: 2 });
-		}
+        // Load the stream - Shaka will handle retries automatically
+        player.load(streamUrl).catch(function (error) {
+            console.error('Load failed after all retries:', error);
+        });
+    }
 
-		// Configure player with retry parameters for both manifest and segments
-		player.configure({
-			manifest: {
-				retryParameters: {
-					timeout: 30000,
-					baseDelay: 1000,
-					maxAttempts: Infinity,
-				}
-			},
-			streaming: {
-				bufferingGoal: 30,
-				rebufferingGoal: 2,
-				bufferBehind: 90,
-				lowLatencyMode: true,
-				retryParameters: {
-					timeout: 30000,
-					baseDelay: 500,
-					maxAttempts: Infinity,
-				}
-			}
-		});
+    function cleanup() {
+        if (player) player.destroy();
+    }
 
-		// Hide waiting indicator when stream loads
-		video.addEventListener('loadeddata', function () {
-			hideWaiting();
-		}, { once: true });
-
-		// Load the stream - Shaka will handle retries automatically
-		player.load(streamUrl).catch(function (error) {
-			console.error('Load failed after all retries:', error);
-		});
-	}
-
-	function handleVisibilityChange() {
-		if (document.hidden) {
-			if (heartbeatTimer) {
-				clearInterval(heartbeatTimer);
-				heartbeatTimer = null;
-			}
-		} else {
-			startHeartbeat();
-		}
-	}
-
-	function cleanup() {
-		if (heartbeatTimer) clearInterval(heartbeatTimer);
-		if (player) player.destroy();
-	}
-
-	// Initialize
-	document.addEventListener('DOMContentLoaded', function () {
-		loadUserInfo();
-		startHeartbeat();
-		initPlayer();
-
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('beforeunload', cleanup);
-	});
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        initPlayer();
+        window.addEventListener('beforeunload', cleanup);
+    });
 })();
