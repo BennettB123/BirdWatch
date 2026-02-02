@@ -145,15 +145,57 @@
             }
         });
 
-        // Hide waiting indicator when stream loads
-        video.addEventListener('loadeddata', function () {
+        // Hide waiting indicator when video plays
+        video.addEventListener('playing', function () {
             hideWaiting();
-        }, { once: true });
+        });
+
+        // Show waiting indicator when video is waiting/stalled
+        video.addEventListener('waiting', function () {
+            showWaiting();
+        });
+
+        // Handle errors - reload the player after a delay
+        player.addEventListener('error', function (event) {
+            const error = event.detail;
+            console.error('Shaka error:', error);
+
+            // If we get a critical error, try to reload after a delay
+            if (error.severity === shaka.util.Error.Severity.CRITICAL) {
+                console.log('Critical error, will attempt reload in 5 seconds...');
+                showWaiting();
+                setTimeout(function () {
+                    reloadPlayer();
+                }, 5000);
+            }
+        });
 
         // Load the stream - Shaka will handle retries automatically
         player.load(streamUrl).catch(function (error) {
-            console.error('Load failed after all retries:', error);
+            console.error('Load failed:', error);
+            showWaiting();
         });
+    }
+
+    // Reload the player (destroys and recreates)
+    async function reloadPlayer() {
+        console.log('Reloading player...');
+        if (player) {
+            try {
+                await player.unload();
+            } catch (e) {
+                console.error('Error unloading player:', e);
+            }
+        }
+
+        const streamUrl = BASE_PATH + '/api/stream/playlist.m3u8';
+        try {
+            await player.load(streamUrl);
+        } catch (error) {
+            console.error('Reload failed:', error);
+            // Try again after another delay
+            setTimeout(reloadPlayer, 10000);
+        }
     }
 
     function cleanup() {

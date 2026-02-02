@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Transcoder struct {
@@ -54,6 +55,10 @@ func (t *Transcoder) Start() error {
 	segmentDuration := strconv.Itoa(config.AppConfig.HLSSegmentDuration)
 	listSize := strconv.Itoa(config.AppConfig.HLSListSize)
 
+	// Use timestamp-based start number to ensure unique segment sequence on each stream start
+	// This prevents Shaka Player from thinking it already has segments with the same numbers
+	startNumber := strconv.FormatInt(time.Now().Unix()%100000, 10)
+
 	args := []string{
 		"-f", "flv", // Input format is FLV from RTMP
 		"-fflags", "nobuffer", // Reduce input buffering
@@ -63,7 +68,8 @@ func (t *Transcoder) Start() error {
 		"-f", "hls",
 		"-hls_time", segmentDuration,
 		"-hls_list_size", listSize,
-		"-hls_flags", "delete_segments+append_list",
+		"-hls_flags", "delete_segments",
+		"-start_number", startNumber,
 		"-hls_segment_filename", segmentPattern,
 		playlistPath,
 	}
