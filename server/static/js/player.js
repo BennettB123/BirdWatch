@@ -19,12 +19,14 @@
     function showWaiting() {
         if (streamWaiting) {
             streamWaiting.classList.remove('hidden');
+            streamWaiting.classList.add('flex');
         }
     }
 
     function hideWaiting() {
         if (streamWaiting) {
             streamWaiting.classList.add('hidden');
+            streamWaiting.classList.remove('flex');
         }
     }
 

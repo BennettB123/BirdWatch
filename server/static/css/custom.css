@@ -1,0 +1,64 @@
+/* Custom CSS for things Tailwind can't handle */
+
+/* Hide Shaka Player's built-in spinner (we use our own) */
+.shaka-spinner-container {
+    display: none !important;
+}
+
+/* Shaka Player custom buttons */
+.shaka-rewind-button,
+.shaka-fast-forward-button {
+    font-family: 'Material Icons Round';
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+}
+
+.shaka-rewind-button:hover,
+.shaka-fast-forward-button:hover {
+    opacity: 0.7;
+}
+
+/* Checkbox accent color */
+input[type="checkbox"] {
+    accent-color: #9147ff;
+}
+
+/* Fullscreen video styles */
+#video-container:fullscreen,
+#video-container:-webkit-full-screen {
+    width: 100vw;
+    max-width: none;
+    border-radius: 0;
+}
+
+#video-container:fullscreen video,
+#video-container:-webkit-full-screen video {
+    height: 100vh;
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
+/* Sighting card selected state pseudo-element */
+.sighting-card.selected::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 3px solid #9147ff;
+    border-radius: 0.5rem;
+    pointer-events: none;
+    z-index: 5;
+}

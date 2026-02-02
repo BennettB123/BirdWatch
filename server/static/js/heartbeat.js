@@ -25,7 +25,7 @@
                     img.src = user.picture;
                     img.alt = user.name || user.email || 'Profile';
                     img.title = user.name || user.email || '';
-                    img.className = 'user-avatar';
+                    img.className = 'w-8 h-8 min-w-[32px] min-h-[32px] max-w-[32px] max-h-[32px] rounded-full object-cover flex-shrink-0';
                     img.width = 32;
                     img.height = 32;
                     userInfo.innerHTML = '';

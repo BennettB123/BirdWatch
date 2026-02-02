@@ -8,14 +8,29 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/birdwatch/static/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/birdwatch/static/favicons/favicon-16x16.png">
     <link rel="manifest" href="/birdwatch/static/favicons/site.webmanifest">
-    <link rel="stylesheet" href="/birdwatch/static/css/style.css">
-    <link rel="stylesheet" href="/birdwatch/static/css/sightings.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0e0e10',
+                        'card': '#18181b',
+                        'primary': '#9147ff',
+                        'primary-hover': '#772ce8',
+                        'border-color': '#3d3d40',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/birdwatch/static/css/custom.css">
 </head>
-<body>
-    <div class="sightings-container">
-        <header class="player-header">
-            <div class="header-left">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<body class="bg-dark text-gray-100 min-h-screen font-sans">
+    <div class="flex flex-col min-h-screen">
+        <header class="flex items-center justify-between px-8 py-4 bg-card border-b border-border-color md:px-4">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
                     <path d="M16 7h.01"/>
                     <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
                     <path d="m20 7 2 .5-2 .5"/>
@@ -23,49 +38,49 @@
                     <path d="M14 17.75V21"/>
                     <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                 </svg>
-                <h1>BirdWatch</h1>
+                <h1 class="text-xl font-bold md:hidden">BirdWatch</h1>
             </div>
-            <div class="header-right">
-                <a href="/birdwatch/player" class="nav-link">Live Stream</a>
-                <span id="user-info" class="user-info"></span>
-                <a href="/birdwatch/auth/logout" class="logout-btn">Logout</a>
+            <div class="flex items-center gap-4">
+                <a href="/birdwatch/player" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Live Stream</a>
+                <span id="user-info" class="text-gray-400 text-sm flex items-center"></span>
+                <a href="/birdwatch/auth/logout" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Logout</a>
             </div>
         </header>
 
-        <main class="sightings-main">
-            <div class="sightings-header-bar">
+        <main class="flex-1 p-8 max-w-[1400px] mx-auto w-full md:p-4 md:pb-20">
+            <div class="flex justify-between items-center mb-8 md:flex-col md:gap-4 md:items-start">
                 <div>
-                    <h2 class="sightings-title">Sightings</h2>
-                    <p class="sightings-count" id="sightings-count"></p>
+                    <h2 class="text-2xl font-semibold">Sightings</h2>
+                    <p class="text-gray-400 text-sm" id="sightings-count"></p>
                 </div>
-                <button id="select-mode-btn" class="select-mode-btn" onclick="toggleSelectMode()">Select</button>
+                <button id="select-mode-btn" onclick="toggleSelectMode()" class="px-4 py-2 bg-card border border-border-color rounded-md text-gray-100 text-sm cursor-pointer transition-colors hover:bg-border-color data-[active=true]:bg-primary data-[active=true]:border-primary data-[active=true]:text-white">Select</button>
             </div>
 
-            <div id="sightings-grid" class="sightings-grid">
-                <div class="loading">Loading sightings...</div>
+            <div id="sightings-grid" class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 md:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] md:gap-4">
+                <div class="text-center p-8 text-gray-400 col-span-full">Loading sightings...</div>
             </div>
 
-            <button id="load-more" class="load-more" style="display: none;">Load More</button>
+            <button id="load-more" class="block mx-auto mt-8 py-3 px-8 bg-primary text-white border-none rounded-md text-sm font-semibold cursor-pointer transition-colors hover:bg-primary-hover disabled:bg-border-color disabled:cursor-not-allowed" style="display: none;">Load More</button>
         </main>
 
-        <footer class="player-footer">
+        <footer class="px-8 py-4 text-center text-gray-400 text-sm border-t border-border-color">
             <p>Bird Watching Sightings Gallery</p>
         </footer>
     </div>
 
     <!-- Lightbox -->
-    <div id="lightbox" class="lightbox">
-        <div class="lightbox-content">
-            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
-            <img id="lightbox-image" class="lightbox-image" src="" alt="Sighting">
-            <div class="lightbox-info" id="lightbox-info"></div>
+    <div id="lightbox" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[1000] p-8 data-[active=true]:flex">
+        <div class="max-w-[90vw] max-h-[90vh] relative">
+            <button class="absolute -top-10 right-0 bg-transparent border-none text-white text-3xl cursor-pointer p-2 leading-none" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-image" class="max-w-full max-h-[85vh] rounded" src="" alt="Sighting">
+            <div class="text-center mt-4 text-gray-400" id="lightbox-info"></div>
         </div>
     </div>
 
     <!-- Bulk Actions Bar -->
-    <div id="bulk-actions" class="bulk-actions">
-        <span class="bulk-actions-info"><span id="selected-count">0 selected</span></span>
-        <button class="bulk-delete-btn" onclick="confirmBulkDelete()">
+    <div id="bulk-actions" class="fixed bottom-0 left-0 right-0 bg-card border-t border-border-color px-8 py-4 hidden justify-between items-center z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.3)] data-[visible=true]:flex md:px-4">
+        <span class="text-sm text-gray-100"><span id="selected-count">0 selected</span></span>
+        <button class="py-2.5 px-5 bg-red-500 border-none rounded-md text-white text-sm font-medium cursor-pointer flex items-center gap-1.5 transition-colors hover:bg-red-600" onclick="confirmBulkDelete()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 6h18"/>
                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
@@ -76,18 +91,18 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="delete-modal">
-        <div class="delete-modal-content">
-            <svg class="delete-modal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div id="delete-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[1001] data-[visible=true]:flex">
+        <div class="bg-card rounded-xl p-6 max-w-[400px] w-[90%] text-center">
+            <svg class="w-12 h-12 mx-auto mb-4 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <h3 class="delete-modal-title">Delete Sightings</h3>
-            <p class="delete-modal-message">Are you sure you want to delete <span id="delete-count">this sighting</span>? This action cannot be undone.</p>
-            <div class="delete-modal-actions">
-                <button class="delete-cancel-btn" onclick="closeDeleteModal()">Cancel</button>
-                <button class="delete-confirm-btn" onclick="executeDelete()">Delete</button>
+            <h3 class="text-xl font-semibold mb-2">Delete Sightings</h3>
+            <p class="text-gray-400 mb-6">Are you sure you want to delete <span id="delete-count">this sighting</span>? This action cannot be undone.</p>
+            <div class="flex gap-3 justify-center">
+                <button class="py-2.5 px-5 bg-border-color border-none rounded-md text-gray-100 text-sm cursor-pointer transition-colors hover:bg-gray-500" onclick="closeDeleteModal()">Cancel</button>
+                <button class="delete-confirm-btn py-2.5 px-5 bg-red-500 border-none rounded-md text-white text-sm font-medium cursor-pointer transition-colors hover:bg-red-600 disabled:bg-red-900 disabled:cursor-not-allowed" onclick="executeDelete()">Delete</button>
             </div>
         </div>
     </div>

@@ -8,13 +8,29 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/birdwatch/static/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/birdwatch/static/favicons/favicon-16x16.png">
     <link rel="manifest" href="/birdwatch/static/favicons/site.webmanifest">
-    <link rel="stylesheet" href="/birdwatch/static/css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0e0e10',
+                        'card': '#18181b',
+                        'primary': '#9147ff',
+                        'primary-hover': '#772ce8',
+                        'border-color': '#3d3d40',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/birdwatch/static/css/custom.css">
 </head>
-<body>
-    <div class="container">
-        <div class="login-card">
-            <div class="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<body class="bg-dark text-gray-100 min-h-screen font-sans">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-card rounded-lg p-12 text-center max-w-[400px] w-full shadow-2xl">
+            <div class="text-primary mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto">
                     <path d="M16 7h.01"/>
                     <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
                     <path d="m20 7 2 .5-2 .5"/>
@@ -23,12 +39,12 @@
                     <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                 </svg>
             </div>
-            <h1>BirdWatch</h1>
-            <p class="subtitle">Bird Watching Live Stream</p>
+            <h1 class="text-3xl font-bold mb-2">BirdWatch</h1>
+            <p class="text-gray-400 mb-8">Bird Watching Live Stream</p>
 
-            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="error-message" class="bg-red-600/10 border border-red-600 text-red-500 p-4 rounded-md mb-6 text-sm hidden"></div>
 
-            <a href="/birdwatch/auth/login" class="google-btn">
+            <a href="/birdwatch/auth/login" class="inline-flex items-center justify-center gap-3 bg-white text-gray-800 no-underline py-3.5 px-6 rounded-md font-semibold transition-all duration-200 w-full hover:-translate-y-0.5 hover:shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
                     <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
                     <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
@@ -38,7 +54,7 @@
                 Sign in with Google
             </a>
 
-            <p class="info">Access is restricted to authorized users only.</p>
+            <p class="text-gray-400 text-sm mt-8">Access is restricted to authorized users only.</p>
         </div>
     </div>
 
@@ -59,7 +75,7 @@
                 'session_failed': 'Failed to create session. Please try again.'
             };
             errorDiv.textContent = messages[error] || 'An error occurred. Please try again.';
-            errorDiv.style.display = 'block';
+            errorDiv.classList.remove('hidden');
         }
     </script>
 </body>

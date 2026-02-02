@@ -44,7 +44,12 @@
             console.error('Failed to fetch sightings:', error);
             const grid = document.getElementById('sightings-grid');
             if (grid) {
-                grid.innerHTML = '<div class="empty-state"><h2>Failed to load sightings</h2><p>Please try again later.</p></div>';
+                grid.innerHTML = `
+                    <div class="text-center py-16 px-8 text-gray-400 col-span-full">
+                        <h2 class="text-xl mb-2 text-gray-100">Failed to load sightings</h2>
+                        <p>Please try again later.</p>
+                    </div>
+                `;
             }
         }
     }
@@ -60,8 +65,8 @@
 
         if (sightings.length === 0 && !append) {
             grid.innerHTML = `
-                <div class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="text-center py-16 px-8 text-gray-400 col-span-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-16 h-16 mx-auto mb-4 opacity-50">
                         <path d="M16 7h.01"/>
                         <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
                         <path d="m20 7 2 .5-2 .5"/>
@@ -69,7 +74,7 @@
                         <path d="M14 17.75V21"/>
                         <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                     </svg>
-                    <h2>No sightings yet</h2>
+                    <h2 class="text-xl mb-2 text-gray-100">No sightings yet</h2>
                     <p>Sightings will appear here when birds are detected.</p>
                 </div>
             `;
@@ -78,7 +83,7 @@
 
         sightings.forEach(sighting => {
             const card = document.createElement('div');
-            card.className = 'sighting-card';
+            card.className = 'sighting-card group bg-card rounded-lg overflow-hidden transition-all duration-200 relative hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]';
             card.dataset.sightingId = sighting.id;
 
             const timestamp = new Date(sighting.timestamp);
@@ -95,21 +100,22 @@
             });
 
             const imageUrl = `${BASE_PATH}/api/sightings/images/${sighting.image_path}`;
+            const checkboxVisibleClass = selectMode ? 'flex' : 'hidden';
 
             card.innerHTML = `
-                <div class="sighting-checkbox ${selectMode ? 'visible' : ''}" onclick="toggleSightingSelection(event, ${sighting.id})">
-                    <input type="checkbox" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
+                <div class="sighting-checkbox absolute top-2 left-2 z-10 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
+                    <input type="checkbox" class="w-[18px] h-[18px] cursor-pointer" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
                 </div>
-                <div class="sighting-menu">
-                    <button class="sighting-menu-btn" onclick="toggleCardMenu(event, ${sighting.id})">
+                <div class="sighting-menu absolute top-2 right-2 z-10">
+                    <button class="sighting-menu-btn bg-black/60 border-none rounded p-1 cursor-pointer text-white opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity duration-200 flex items-center justify-center hover:bg-black/80" onclick="toggleCardMenu(event, ${sighting.id})">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="12" cy="5" r="2"/>
                             <circle cx="12" cy="12" r="2"/>
                             <circle cx="12" cy="19" r="2"/>
                         </svg>
                     </button>
-                    <div class="sighting-menu-dropdown" id="menu-${sighting.id}">
-                        <button class="menu-item menu-item-delete" onclick="confirmDeleteSingle(${sighting.id})">
+                    <div class="sighting-menu-dropdown absolute top-full right-0 mt-1 bg-card rounded-md shadow-[0_4px_20px_rgba(0,0,0,0.4)] min-w-[140px] hidden overflow-hidden" id="menu-${sighting.id}">
+                        <button class="flex items-center gap-2 w-full py-2.5 px-3.5 bg-transparent border-none text-red-500 text-sm cursor-pointer text-left transition-colors hover:bg-red-500/10" onclick="confirmDeleteSingle(${sighting.id})">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 6h18"/>
                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
@@ -119,12 +125,12 @@
                         </button>
                     </div>
                 </div>
-                <div class="sighting-image-container" onclick="handleCardClick(event, '${imageUrl}', '${timeStr}', '${dateStr}', ${sighting.id})">
-                    <img class="sighting-image" src="${imageUrl}" alt="Bird sighting" loading="lazy">
+                <div class="relative aspect-video overflow-hidden cursor-pointer" onclick="handleCardClick(event, '${imageUrl}', '${timeStr}', '${dateStr}', ${sighting.id})">
+                    <img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" src="${imageUrl}" alt="Bird sighting" loading="lazy">
                 </div>
-                <div class="sighting-info">
-                    <div class="sighting-timestamp">${timeStr}</div>
-                    <div class="sighting-date">${dateStr}</div>
+                <div class="p-4">
+                    <div class="text-gray-100 text-sm font-medium">${timeStr}</div>
+                    <div class="text-gray-400 text-xs mt-1">${dateStr}</div>
                 </div>
             `;
 
@@ -145,7 +151,8 @@
         if (lightboxImage) lightboxImage.src = imageUrl;
         if (lightboxInfo) lightboxInfo.textContent = `${time} - ${date}`;
         if (lightbox) {
-            lightbox.classList.add('active');
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex');
             document.body.style.overflow = 'hidden';
         }
     };
@@ -153,7 +160,8 @@
     window.closeLightbox = function () {
         const lightbox = document.getElementById('lightbox');
         if (lightbox) {
-            lightbox.classList.remove('active');
+            lightbox.classList.add('hidden');
+            lightbox.classList.remove('flex');
             document.body.style.overflow = '';
         }
     };
@@ -183,14 +191,34 @@
 
         if (selectBtn) {
             selectBtn.textContent = selectMode ? 'Cancel' : 'Select';
-            selectBtn.classList.toggle('active', selectMode);
+            if (selectMode) {
+                selectBtn.classList.add('bg-primary', 'border-primary', 'text-white');
+                selectBtn.classList.remove('bg-card', 'hover:bg-border-color');
+            } else {
+                selectBtn.classList.remove('bg-primary', 'border-primary', 'text-white');
+                selectBtn.classList.add('bg-card', 'hover:bg-border-color');
+            }
         }
 
         if (bulkActions) {
-            bulkActions.classList.toggle('visible', selectMode && selectedSightings.size > 0);
+            if (selectMode && selectedSightings.size > 0) {
+                bulkActions.classList.remove('hidden');
+                bulkActions.classList.add('flex');
+            } else {
+                bulkActions.classList.add('hidden');
+                bulkActions.classList.remove('flex');
+            }
         }
 
-        checkboxes.forEach(cb => cb.classList.toggle('visible', selectMode));
+        checkboxes.forEach(cb => {
+            if (selectMode) {
+                cb.classList.remove('hidden');
+                cb.classList.add('flex');
+            } else {
+                cb.classList.add('hidden');
+                cb.classList.remove('flex');
+            }
+        });
         cards.forEach(card => card.classList.remove('selected'));
 
         updateSelectedCount();
@@ -205,7 +233,13 @@
         }
 
         if (bulkActions) {
-            bulkActions.classList.toggle('visible', selectMode && selectedSightings.size > 0);
+            if (selectMode && selectedSightings.size > 0) {
+                bulkActions.classList.remove('hidden');
+                bulkActions.classList.add('flex');
+            } else {
+                bulkActions.classList.add('hidden');
+                bulkActions.classList.remove('flex');
+            }
         }
     }
 
@@ -236,13 +270,15 @@
 
         const menu = document.getElementById(`menu-${sightingId}`);
         if (menu) {
-            menu.classList.add('visible');
+            menu.classList.remove('hidden');
+            menu.classList.add('block');
         }
     };
 
     function closeAllMenus() {
         document.querySelectorAll('.sighting-menu-dropdown').forEach(menu => {
-            menu.classList.remove('visible');
+            menu.classList.add('hidden');
+            menu.classList.remove('block');
         });
     }
 
@@ -270,14 +306,16 @@
 
         if (modal) {
             modal.dataset.deleteIds = JSON.stringify(ids);
-            modal.classList.add('visible');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
     }
 
     window.closeDeleteModal = function () {
         const modal = document.getElementById('delete-modal');
         if (modal) {
-            modal.classList.remove('visible');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
             modal.dataset.deleteIds = '';
         }
     };
@@ -345,8 +383,8 @@
             const grid = document.getElementById('sightings-grid');
             if (grid) {
                 grid.innerHTML = `
-                    <div class="empty-state">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="text-center py-16 px-8 text-gray-400 col-span-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-16 h-16 mx-auto mb-4 opacity-50">
                             <path d="M16 7h.01"/>
                             <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
                             <path d="m20 7 2 .5-2 .5"/>
@@ -354,7 +392,7 @@
                             <path d="M14 17.75V21"/>
                             <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                         </svg>
-                        <h2>No sightings yet</h2>
+                        <h2 class="text-xl mb-2 text-gray-100">No sightings yet</h2>
                         <p>Sightings will appear here when birds are detected.</p>
                     </div>
                 `;

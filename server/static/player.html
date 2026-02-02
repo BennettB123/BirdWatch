@@ -8,17 +8,33 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/birdwatch/static/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/birdwatch/static/favicons/favicon-16x16.png">
     <link rel="manifest" href="/birdwatch/static/favicons/site.webmanifest">
-    <link rel="stylesheet" href="/birdwatch/static/css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0e0e10',
+                        'card': '#18181b',
+                        'primary': '#9147ff',
+                        'primary-hover': '#772ce8',
+                        'border-color': '#3d3d40',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/birdwatch/static/css/custom.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/controls.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Icons+Round">
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.compiled.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.ui.js"></script>
 </head>
-<body>
-    <div class="player-container">
-        <header class="player-header">
-            <div class="header-left">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<body class="bg-dark text-gray-100 min-h-screen font-sans">
+    <div class="flex flex-col min-h-screen">
+        <header class="flex items-center justify-between px-8 py-4 bg-card border-b border-border-color md:px-4">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
                     <path d="M16 7h.01"/>
                     <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
                     <path d="m20 7 2 .5-2 .5"/>
@@ -26,33 +42,33 @@
                     <path d="M14 17.75V21"/>
                     <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                 </svg>
-                <h1>BirdWatch</h1>
+                <h1 class="text-xl font-bold md:hidden">BirdWatch</h1>
             </div>
-            <div class="header-right">
-                <a href="/birdwatch/sightings" class="logout-btn">Sightings</a>
-                <span id="user-info" class="user-info"></span>
-                <a href="/birdwatch/auth/logout" class="logout-btn">Logout</a>
+            <div class="flex items-center gap-4">
+                <a href="/birdwatch/sightings" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Sightings</a>
+                <span id="user-info" class="text-gray-400 text-sm flex items-center"></span>
+                <a href="/birdwatch/auth/logout" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Logout</a>
             </div>
         </header>
 
-        <main class="player-main">
-            <div id="video-container" data-shaka-player-container>
-                <video id="video" data-shaka-player autoplay muted playsinline></video>
-                <div id="stream-waiting" class="stream-waiting">
-                    <div class="waiting-content">
-                        <div class="spinner"></div>
-                        <p>Waiting for stream to start...</p>
+        <main class="flex-1 flex flex-col items-center justify-center p-8 md:p-4">
+            <div id="video-container" data-shaka-player-container class="relative w-[75vw] max-w-[1280px] bg-black rounded overflow-hidden md:w-[90vw] sm:w-[95vw]">
+                <video id="video" data-shaka-player autoplay muted playsinline class="w-full block aspect-video bg-black"></video>
+                <div id="stream-waiting" class="absolute inset-0 bg-black/85 flex items-center justify-center z-[100]">
+                    <div class="text-center text-gray-100">
+                        <div class="w-12 h-12 border-[3px] border-border-color border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+                        <p class="text-base text-gray-400">Waiting for stream to start...</p>
                     </div>
                 </div>
             </div>
         </main>
 
-        <footer class="player-footer">
+        <footer class="px-8 py-4 text-center text-gray-400 text-sm border-t border-border-color">
             <p>Bird Watching Live Stream</p>
         </footer>
     </div>
 
     <script src="/birdwatch/static/js/heartbeat.js"></script>
-    <script src="/birdwatch/static/js/app.js"></script>
+    <script src="/birdwatch/static/js/player.js"></script>
 </body>
 </html>
