@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """BirdWatch Raspberry Pi client.
 
-This service polls the BirdWatch server to check if any users are viewing
-the stream. When users are present, it starts streaming from the Pi camera.
-When no users are present, it stops streaming.
+This service manages camera, motion detection, and RTMP streaming:
+- Camera and motion detection run continuously (if enabled)
+- Polls the BirdWatch server to check if users are viewing
+- Starts RTMP streaming when users are present
+- Stops RTMP streaming when no users are watching
 """
 
 import logging
@@ -15,7 +17,9 @@ from typing import Optional
 import requests
 
 import config
-from stream_manager import get_stream_manager
+from camera_manager import get_camera_manager
+from streaming_manager import get_streaming_manager
+from motion_manager import get_motion_manager
 
 # Configure logging
 logging.basicConfig(
@@ -89,8 +93,23 @@ def main():
     logger.info(f"Server URL: {config.SERVER_URL}")
     logger.info(f"RTMP URL: {config.RTMP_URL}")
     logger.info(f"Poll interval: {config.POLL_INTERVAL}s")
+    logger.info(f"Motion detection: {'enabled' if config.MOTION_DETECTION_ENABLED else 'disabled'}")
 
-    stream_manager = get_stream_manager()
+    # Initialize managers
+    camera_manager = get_camera_manager()
+    streaming_manager = get_streaming_manager()
+    motion_manager = get_motion_manager()
+
+    # Start camera
+    if not camera_manager.start():
+        logger.error("Failed to start camera, exiting")
+        return
+
+    # Start motion detection if enabled
+    if config.MOTION_DETECTION_ENABLED:
+        if not motion_manager.start():
+            logger.warning("Failed to start motion detection, continuing without it")
+
     consecutive_failures = 0
     max_failures = 5  # Stop streaming after 5 consecutive failures
 
@@ -101,21 +120,21 @@ def main():
             if should_stream is None:
                 # Request failed
                 consecutive_failures += 1
-                if consecutive_failures >= max_failures and stream_manager.is_streaming:
+                if consecutive_failures >= max_failures and streaming_manager.is_streaming:
                     logger.warning(f"{consecutive_failures} consecutive failures, stopping stream")
-                    stream_manager.stop()
+                    streaming_manager.stop()
             else:
                 consecutive_failures = 0
 
                 if should_stream:
-                    if not stream_manager.is_streaming:
-                        logger.info("Users are watching, starting stream...")
-                        if not stream_manager.start():
-                            logger.error("Failed to start stream, will retry...")
+                    if not streaming_manager.is_streaming:
+                        logger.info("Users are watching, starting RTMP stream...")
+                        if not streaming_manager.start():
+                            logger.error("Failed to start RTMP stream, will retry...")
                 else:
-                    if stream_manager.is_streaming:
-                        logger.info("No users watching, stopping stream...")
-                        stream_manager.stop()
+                    if streaming_manager.is_streaming:
+                        logger.info("No users watching, stopping RTMP stream...")
+                        streaming_manager.stop()
 
             # Wait for next poll
             for _ in range(config.POLL_INTERVAL):
@@ -129,8 +148,9 @@ def main():
 
     # Cleanup
     logger.info("Shutting down...")
-    if stream_manager.is_streaming:
-        stream_manager.stop()
+    motion_manager.stop()
+    streaming_manager.stop()
+    camera_manager.stop()
     logger.info("BirdWatch Pi client stopped")
 
 
