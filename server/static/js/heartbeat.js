@@ -19,7 +19,20 @@
             const response = await fetch(BASE_PATH + '/api/user');
             if (response.ok) {
                 const user = await response.json();
-                userInfo.textContent = user.name || user.email || '';
+                if (user.picture) {
+                    // Create profile picture element
+                    const img = document.createElement('img');
+                    img.src = user.picture;
+                    img.alt = user.name || user.email || 'Profile';
+                    img.title = user.name || user.email || '';
+                    img.className = 'user-avatar';
+                    img.width = 32;
+                    img.height = 32;
+                    userInfo.innerHTML = '';
+                    userInfo.appendChild(img);
+                } else {
+                    userInfo.textContent = user.name || user.email || '';
+                }
             }
         } catch (err) {
             console.error('Failed to load user info:', err);
