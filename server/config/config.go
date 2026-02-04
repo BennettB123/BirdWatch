@@ -38,6 +38,7 @@ type Config struct {
 	RTMPPort             string
 	Port                 string
 	BasePath             string
+	BaseURL              string
 	OAuthConfig          *oauth2.Config
 	GoogleAuthFile       string
 	PushoverAPIToken     string
@@ -66,6 +67,7 @@ func Load() *Config {
 		RTMPPort:             requireEnv("BIRDWATCH_RTMP_PORT"),
 		Port:                 requireEnv("BIRDWATCH_PORT"),
 		BasePath:             requireEnv("BIRDWATCH_BASE_PATH"),
+		BaseURL:              requireEnv("BIRDWATCH_BASE_URL"),
 		GoogleAuthFile:       requireEnv("BIRDWATCH_GOOGLE_AUTH_FILE"),
 		PushoverAPIToken:     os.Getenv("BIRDWATCH_PUSHOVER_API_TOKEN"),
 		PushoverUserKey:      os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),

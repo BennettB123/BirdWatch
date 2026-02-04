@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"birdwatch/config"
 	"birdwatch/services"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +43,19 @@ func HandleCreateSighting(c *gin.Context) {
 		log.Printf("Failed to create sighting: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create sighting"})
 		return
+	}
+
+	// Send notification
+	if notifier := services.GetNotificationService(); notifier != nil {
+		cfg := config.AppConfig
+		sightingsURL := cfg.BaseURL + cfg.BasePath + "/sightings"
+		go notifier.SendNotification(services.NotificationOptions{
+			Title:    "🐦 New Bird Sighting! 🐦",
+			Message:  "A bird was detected at " + timestamp.Format("3:04 PM"),
+			Priority: services.PriorityLow,
+			URL:      sightingsURL,
+			URLTitle: "📸 View Sightings 📸",
+		})
 	}
 
 	c.JSON(http.StatusCreated, sighting)

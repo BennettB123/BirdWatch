@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -115,17 +114,6 @@ func HandleCallback(c *gin.Context) {
 			})
 		}
 
-		if notifier := services.GetNotificationService(); notifier != nil {
-			message := fmt.Sprintf("Unauthorized login attempt\n\nEmail: %s\nName: %s",
-				userInfo.Email,
-				userInfo.Name)
-			go notifier.SendAdminNotification(services.NotificationOptions{
-				Title:    "BirdWatch Login Failed",
-				Message:  message,
-				Priority: services.PriorityHigh,
-			})
-		}
-
 		c.Redirect(http.StatusFound, basePath+"/?error=unauthorized")
 		return
 	}
@@ -167,18 +155,6 @@ func HandleCallback(c *gin.Context) {
 	services.GetSessionManager().AddUser(userInfo.Email)
 
 	log.Printf("User logged in: %s (role: %s)", userInfo.Email, role)
-
-	// Send notification for successful login
-	if notifier := services.GetNotificationService(); notifier != nil {
-		message := fmt.Sprintf("User logged in\n\nEmail: %s\nName: %s",
-			userInfo.Email,
-			userInfo.Name)
-		go notifier.SendAdminNotification(services.NotificationOptions{
-			Title:    "BirdWatch Login Successful",
-			Message:  message,
-			Priority: services.PriorityNormal,
-		})
-	}
 
 	c.Redirect(http.StatusFound, basePath+"/player")
 }
