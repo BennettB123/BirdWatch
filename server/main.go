@@ -38,7 +38,8 @@ func main() {
 	// Initialize services
 	sessionMgr := services.GetSessionManager()
 	rtmpServer := services.GetRTMPServer(cfg.StreamKey, cfg.HLSDir)
-	_ = services.GetSightingService() // Initialize sighting service early to catch errors
+	_ = services.GetSightingService()
+	_ = services.GetAuditService()
 
 	// Start RTMP server
 	if err := rtmpServer.Start(cfg.RTMPPort); err != nil {
@@ -112,13 +113,34 @@ func main() {
 				stream.GET("/:segment", handlers.HandleSegment)
 			}
 
-			// Sightings API endpoints
+			// Sightings API endpoints (read-only for all authenticated users)
 			protected.GET("/api/sightings", handlers.HandleGetSightings)
 			protected.GET("/api/sightings/images/:filename", handlers.HandleGetSightingImage)
-			protected.DELETE("/api/sightings/:id", handlers.HandleDeleteSighting)
 
 			// Stream status (for debugging)
 			protected.GET("/api/stream/status", handlers.HandleStreamStatus)
+		}
+
+		// Admin-only routes
+		admin := base.Group("")
+		admin.Use(middleware.RequireAuth(), middleware.RequireAdmin())
+		{
+			// Admin page
+			admin.GET("/admin", func(c *gin.Context) {
+				c.File("./static/admin.html")
+			})
+
+			// Sighting deletion (admin only)
+			admin.DELETE("/api/sightings/:id", handlers.HandleDeleteSighting)
+
+			// Login attempts
+			admin.GET("/api/admin/login-attempts", handlers.HandleGetLoginAttempts)
+
+			// User management
+			admin.GET("/api/admin/users", handlers.HandleGetUsers)
+			admin.POST("/api/admin/users", handlers.HandleAddUser)
+			admin.PUT("/api/admin/users/:email", handlers.HandleUpdateUser)
+			admin.DELETE("/api/admin/users/:email", handlers.HandleDeleteUser)
 		}
 	}
 

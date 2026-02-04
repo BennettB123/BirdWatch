@@ -9,16 +9,33 @@
     const HEARTBEAT_INTERVAL = 10000;
 
     let heartbeatTimer = null;
+    let currentUserRole = null;
 
     // Load user info into element with id="user-info"
     async function loadUserInfo() {
         const userInfo = document.getElementById('user-info');
-        if (!userInfo) return;
 
         try {
             const response = await fetch(BASE_PATH + '/api/user');
             if (response.ok) {
                 const user = await response.json();
+                currentUserRole = user.role || 'user';
+
+                // Show/hide admin link based on role
+                const adminLink = document.getElementById('admin-nav-link');
+                if (adminLink) {
+                    if (currentUserRole === 'admin') {
+                        adminLink.classList.remove('hidden');
+                    } else {
+                        adminLink.classList.add('hidden');
+                    }
+                }
+
+                // Dispatch event so other modules can react to user info loaded
+                window.dispatchEvent(new CustomEvent('birdwatch:userloaded', { detail: user }));
+
+                if (!userInfo) return;
+
                 if (user.picture) {
                     // Create profile picture element
                     const img = document.createElement('img');
@@ -86,5 +103,15 @@
     window.BirdWatchHeartbeat = {
         start: startHeartbeat,
         stop: stopHeartbeat
+    };
+
+    // Expose user role info globally
+    window.BirdWatchUser = {
+        isAdmin: function () {
+            return currentUserRole === 'admin';
+        },
+        getRole: function () {
+            return currentUserRole;
+        }
     };
 })();

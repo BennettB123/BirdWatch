@@ -38,3 +38,16 @@ func RequirePiSecret() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		role := session.Get("role")
+		if role == nil || role.(string) != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -9,10 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"birdwatch/config"
-
-	_ "modernc.org/sqlite"
 )
 
 // Sighting represents a bird sighting record
@@ -25,8 +20,7 @@ type Sighting struct {
 
 // SightingService manages bird sightings storage
 type SightingService struct {
-	db       *sql.DB
-	dataDir  string
+	db       *DB
 	imageDir string
 }
 
@@ -38,12 +32,7 @@ var (
 // GetSightingService returns the singleton SightingService instance
 func GetSightingService() *SightingService {
 	sightingOnce.Do(func() {
-		cfg := config.AppConfig
-		if cfg == nil {
-			log.Fatal("Config not loaded before initializing SightingService")
-		}
-
-		service, err := newSightingService(cfg.DataDir)
+		service, err := newSightingService()
 		if err != nil {
 			log.Fatalf("Failed to initialize SightingService: %v", err)
 		}
@@ -52,27 +41,17 @@ func GetSightingService() *SightingService {
 	return sightingService
 }
 
-func newSightingService(dataDir string) (*SightingService, error) {
-	// Create data directory
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create data directory: %w", err)
-	}
+func newSightingService() (*SightingService, error) {
+	db := GetDB()
 
 	// Create images subdirectory
-	imageDir := filepath.Join(dataDir, "sightings")
+	imageDir := filepath.Join(db.DataDir(), "sightings")
 	if err := os.MkdirAll(imageDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create images directory: %w", err)
 	}
 
-	// Open SQLite database
-	dbPath := filepath.Join(dataDir, "birdwatch.db")
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
 	// Create sightings table
-	_, err = db.Exec(`
+	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS sightings (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			timestamp DATETIME NOT NULL,
@@ -81,15 +60,13 @@ func newSightingService(dataDir string) (*SightingService, error) {
 		)
 	`)
 	if err != nil {
-		db.Close()
 		return nil, fmt.Errorf("failed to create sightings table: %w", err)
 	}
 
-	log.Printf("Sighting service initialized: db=%s, images=%s", dbPath, imageDir)
+	log.Printf("Sighting service initialized: images=%s", imageDir)
 
 	return &SightingService{
 		db:       db,
-		dataDir:  dataDir,
 		imageDir: imageDir,
 	}, nil
 }
@@ -222,9 +199,4 @@ func (s *SightingService) DeleteSighting(id int64) error {
 	os.Remove(fullPath) // Ignore error if file doesn't exist
 
 	return nil
-}
-
-// Close closes the database connection
-func (s *SightingService) Close() error {
-	return s.db.Close()
 }

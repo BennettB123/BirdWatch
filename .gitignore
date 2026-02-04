@@ -1,6 +1,6 @@
 # Secrets and credentials
 server/google_auth.json
-server/allowed_emails.txt
+server/allowed_emails.csv
 .env
 .env.local
 .env.*.local

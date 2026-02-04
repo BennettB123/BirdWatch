@@ -32,6 +32,7 @@
 </head>
 <body class="bg-dark text-gray-100 min-h-screen font-sans">
     <div class="flex flex-col min-h-screen">
+        <!-- Title Bar -->
         <header class="flex items-center justify-between px-8 py-4 bg-card border-b border-border-color md:px-4">
             <div class="flex items-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
@@ -42,17 +43,23 @@
                     <path d="M14 17.75V21"/>
                     <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
                 </svg>
-                <h1 class="text-xl font-bold md:hidden">BirdWatch</h1>
+                <h1 class="text-xl font-bold">BirdWatch</h1>
             </div>
             <div class="flex items-center gap-4">
-                <a href="/birdwatch/sightings" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Sightings</a>
                 <span id="user-info" class="text-gray-400 text-sm flex items-center"></span>
                 <a href="/birdwatch/auth/logout" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Logout</a>
             </div>
         </header>
 
-        <main class="flex-1 flex flex-col items-center justify-center p-8 md:p-4">
-            <div id="video-container" data-shaka-player-container class="relative w-[75vw] max-w-[1280px] bg-black rounded overflow-hidden md:w-[90vw] sm:w-[95vw]">
+        <!-- Navigation Bar -->
+        <nav class="flex items-center justify-center gap-1 px-8 py-2 bg-dark border-b border-border-color md:px-4">
+            <a href="/birdwatch/player" class="text-sm no-underline px-4 py-2 rounded transition-colors bg-border-color text-gray-100">Live Stream</a>
+            <a href="/birdwatch/sightings" class="text-sm no-underline px-4 py-2 rounded transition-colors text-gray-400 hover:bg-border-color hover:text-gray-100">Sightings</a>
+            <a id="admin-nav-link" href="/birdwatch/admin" class="hidden text-sm no-underline px-4 py-2 rounded transition-colors text-gray-400 hover:bg-border-color hover:text-gray-100">Admin</a>
+        </nav>
+
+        <main class="flex-1 flex flex-col items-center justify-center">
+            <div id="video-container" data-shaka-player-container class="relative w-full sm:w-[95vw] md:w-[75vw] max-w-[1280px] bg-black rounded overflow-hidden">
                 <video id="video" data-shaka-player autoplay muted playsinline class="w-full block aspect-video bg-black"></video>
                 <div id="stream-waiting" class="absolute inset-0 bg-black/85 flex items-center justify-center z-[100]">
                     <div class="text-center text-gray-100">

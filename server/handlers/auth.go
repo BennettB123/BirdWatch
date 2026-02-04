@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"birdwatch/config"
 	"birdwatch/services"
@@ -102,6 +103,18 @@ func HandleCallback(c *gin.Context) {
 	if !config.AppConfig.IsEmailAllowed(userInfo.Email) {
 		log.Printf("Unauthorized email attempted login: %s", userInfo.Email)
 
+		// Log failed login attempt
+		if auditSvc := services.GetAuditService(); auditSvc != nil {
+			auditSvc.LogLoginAttempt(services.LoginAttempt{
+				Email:     userInfo.Email,
+				Name:      userInfo.Name,
+				Success:   false,
+				IPAddress: c.ClientIP(),
+				UserAgent: c.Request.UserAgent(),
+				Timestamp: time.Now(),
+			})
+		}
+
 		if notifier := services.GetNotificationService(); notifier != nil {
 			message := fmt.Sprintf("Unauthorized login attempt\n\nEmail: %s\nName: %s",
 				userInfo.Email,
@@ -117,10 +130,14 @@ func HandleCallback(c *gin.Context) {
 		return
 	}
 
+	// Get user role
+	role := config.AppConfig.GetUserRole(userInfo.Email)
+
 	// Create session
 	session.Set("email", userInfo.Email)
 	session.Set("name", userInfo.Name)
 	session.Set("picture", userInfo.Picture)
+	session.Set("role", role)
 	session.Options(sessions.Options{
 		MaxAge:   86400, // 24 hours
 		HttpOnly: true,
@@ -134,10 +151,22 @@ func HandleCallback(c *gin.Context) {
 		return
 	}
 
+	// Log successful login attempt
+	if auditSvc := services.GetAuditService(); auditSvc != nil {
+		auditSvc.LogLoginAttempt(services.LoginAttempt{
+			Email:     userInfo.Email,
+			Name:      userInfo.Name,
+			Success:   true,
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+			Timestamp: time.Now(),
+		})
+	}
+
 	// Register active user
 	services.GetSessionManager().AddUser(userInfo.Email)
 
-	log.Printf("User logged in: %s", userInfo.Email)
+	log.Printf("User logged in: %s (role: %s)", userInfo.Email, role)
 
 	// Send notification for successful login
 	if notifier := services.GetNotificationService(); notifier != nil {
@@ -180,10 +209,12 @@ func HandleUser(c *gin.Context) {
 	email := session.Get("email")
 	name := session.Get("name")
 	picture := session.Get("picture")
+	role := session.Get("role")
 
 	c.JSON(http.StatusOK, gin.H{
 		"email":   email,
 		"name":    name,
 		"picture": picture,
+		"role":    role,
 	})
 }

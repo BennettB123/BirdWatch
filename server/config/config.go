@@ -46,7 +46,7 @@ type Config struct {
 	DataDir              string
 
 	emailsMu      sync.RWMutex
-	allowedEmails map[string]struct{}
+	allowedEmails map[string]string // email -> role (admin or user)
 }
 
 var AppConfig *Config
@@ -71,7 +71,7 @@ func Load() *Config {
 		PushoverUserKey:      os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
 		PushoverAdminUserKey: os.Getenv("BIRDWATCH_PUSHOVER_ADMIN_USER_KEY"),
 		DataDir:              requireEnv("BIRDWATCH_DATA_DIR"),
-		allowedEmails:        make(map[string]struct{}),
+		allowedEmails:        make(map[string]string),
 	}
 
 	// Load OAuth config from google_auth.json
@@ -167,6 +167,7 @@ func requireEnvInt(key string) int {
 
 // ReloadAllowedEmails reads the allowed emails file and updates the in-memory list.
 // This can be called at runtime to pick up changes without restarting the server.
+// File format: email,role (role: admin or user). Role defaults to "user" if not specified.
 func (c *Config) ReloadAllowedEmails() error {
 	resolvedPath, err := resolveFilePath(c.AllowedEmailsFile)
 	if err != nil {
@@ -179,7 +180,7 @@ func (c *Config) ReloadAllowedEmails() error {
 	}
 	defer file.Close()
 
-	emails := make(map[string]struct{})
+	emails := make(map[string]string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -187,7 +188,18 @@ func (c *Config) ReloadAllowedEmails() error {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		emails[strings.ToLower(line)] = struct{}{}
+
+		// Parse CSV format: email,role
+		parts := strings.SplitN(line, ",", 2)
+		email := strings.ToLower(strings.TrimSpace(parts[0]))
+		role := "user" // default role
+		if len(parts) > 1 {
+			role = strings.ToLower(strings.TrimSpace(parts[1]))
+			if role != "admin" && role != "user" {
+				role = "user" // fallback to user for invalid roles
+			}
+		}
+		emails[email] = role
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -215,6 +227,23 @@ func (c *Config) IsEmailAllowed(email string) bool {
 	c.emailsMu.RUnlock()
 
 	return allowed
+}
+
+// GetUserRole returns the role for a given email (admin or user).
+// Returns empty string if email is not allowed.
+func (c *Config) GetUserRole(email string) string {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	c.emailsMu.RLock()
+	role := c.allowedEmails[email]
+	c.emailsMu.RUnlock()
+
+	return role
+}
+
+// IsAdmin returns true if the email belongs to an admin user.
+func (c *Config) IsAdmin(email string) bool {
+	return c.GetUserRole(email) == "admin"
 }
 
 func (c *Config) GetAllowedEmailCount() int {

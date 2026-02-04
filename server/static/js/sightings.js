@@ -12,6 +12,7 @@
     let totalSightings = 0;
     let selectMode = false;
     let selectedSightings = new Set();
+    let isAdmin = false;
 
     // Fetch sightings from API
     async function fetchSightings(offset = 0, append = false) {
@@ -100,12 +101,10 @@
             });
 
             const imageUrl = `${BASE_PATH}/api/sightings/images/${sighting.image_path}`;
-            const checkboxVisibleClass = selectMode ? 'flex' : 'hidden';
+            const checkboxVisibleClass = (selectMode && isAdmin) ? 'flex' : 'hidden';
 
-            card.innerHTML = `
-                <div class="sighting-checkbox absolute top-2 left-2 z-10 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
-                    <input type="checkbox" class="w-[18px] h-[18px] cursor-pointer" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
-                </div>
+            // Only show menu button for admins
+            const menuHtml = isAdmin ? `
                 <div class="sighting-menu absolute top-2 right-2 z-10">
                     <button class="sighting-menu-btn bg-black/60 border-none rounded p-1 cursor-pointer text-white opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity duration-200 flex items-center justify-center hover:bg-black/80" onclick="toggleCardMenu(event, ${sighting.id})">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -125,6 +124,13 @@
                         </button>
                     </div>
                 </div>
+            ` : '';
+
+            card.innerHTML = `
+                <div class="sighting-checkbox absolute top-2 left-2 z-10 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
+                    <input type="checkbox" class="w-[18px] h-[18px] cursor-pointer" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
+                </div>
+                ${menuHtml}
                 <div class="relative aspect-video overflow-hidden cursor-pointer" onclick="handleCardClick(event, '${imageUrl}', '${timeStr}', '${dateStr}', ${sighting.id})">
                     <img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" src="${imageUrl}" alt="Bird sighting" loading="lazy">
                 </div>
@@ -168,7 +174,7 @@
 
     // Handle card click - either select or open lightbox
     window.handleCardClick = function (event, imageUrl, time, date, sightingId) {
-        if (selectMode) {
+        if (selectMode && isAdmin) {
             event.preventDefault();
             toggleSightingSelection(event, sightingId);
         } else {
@@ -176,8 +182,9 @@
         }
     };
 
-    // Toggle select mode
+    // Toggle select mode (admin only)
     window.toggleSelectMode = function () {
+        if (!isAdmin) return;
         selectMode = !selectMode;
         selectedSightings.clear();
         updateSelectModeUI();
@@ -433,6 +440,27 @@
                 fetchSightings(currentOffset, true);
             });
         }
+
+        // Listen for user info loaded event to get admin status
+        window.addEventListener('birdwatch:userloaded', function (e) {
+            isAdmin = e.detail.role === 'admin';
+
+            // Show/hide select button based on admin status
+            const selectBtn = document.getElementById('select-mode-btn');
+            if (selectBtn) {
+                if (isAdmin) {
+                    selectBtn.classList.remove('hidden');
+                } else {
+                    selectBtn.classList.add('hidden');
+                }
+            }
+
+            // Re-render sightings to update delete buttons visibility
+            // Only if we already have sightings loaded
+            if (totalSightings > 0) {
+                fetchSightings(0, false);
+            }
+        });
 
         // Initial fetch
         fetchSightings();

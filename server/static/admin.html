@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BirdWatch - Admin</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/birdwatch/static/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/birdwatch/static/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/birdwatch/static/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/birdwatch/static/favicons/site.webmanifest">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0e0e10',
+                        'card': '#18181b',
+                        'primary': '#9147ff',
+                        'primary-hover': '#772ce8',
+                        'border-color': '#3d3d40',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/birdwatch/static/css/custom.css">
+</head>
+<body class="bg-dark text-gray-100 min-h-screen font-sans">
+    <div class="flex flex-col min-h-screen">
+        <!-- Title Bar -->
+        <header class="flex items-center justify-between px-8 py-4 bg-card border-b border-border-color md:px-4">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                    <path d="M16 7h.01"/>
+                    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
+                    <path d="m20 7 2 .5-2 .5"/>
+                    <path d="M10 18v3"/>
+                    <path d="M14 17.75V21"/>
+                    <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+                </svg>
+                <h1 class="text-xl font-bold">BirdWatch</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="user-info" class="text-gray-400 text-sm flex items-center"></span>
+                <a href="/birdwatch/auth/logout" class="text-gray-400 text-sm no-underline px-4 py-2 rounded transition-colors hover:bg-border-color hover:text-gray-100">Logout</a>
+            </div>
+        </header>
+
+        <!-- Navigation Bar -->
+        <nav class="flex items-center justify-center gap-1 px-8 py-2 bg-dark border-b border-border-color md:px-4">
+            <a href="/birdwatch/player" class="text-sm no-underline px-4 py-2 rounded transition-colors text-gray-400 hover:bg-border-color hover:text-gray-100">Live Stream</a>
+            <a href="/birdwatch/sightings" class="text-sm no-underline px-4 py-2 rounded transition-colors text-gray-400 hover:bg-border-color hover:text-gray-100">Sightings</a>
+            <a id="admin-nav-link" href="/birdwatch/admin" class="text-sm no-underline px-4 py-2 rounded transition-colors bg-border-color text-gray-100">Admin</a>
+        </nav>
+
+        <main class="flex-1 p-8 max-w-[1400px] mx-auto w-full md:p-4">
+            <h2 class="text-2xl font-semibold mb-6">Admin Panel</h2>
+
+            <!-- Tab Navigation -->
+            <div class="flex gap-2 mb-6 border-b border-border-color">
+                <button id="tab-logins" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-primary text-gray-100" onclick="switchTab('logins')">Login History</button>
+                <button id="tab-users" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-100" onclick="switchTab('users')">User Management</button>
+            </div>
+
+            <!-- Login History Tab -->
+            <div id="panel-logins" class="tab-panel">
+                <!-- Filters -->
+                <div class="flex gap-4 mb-4 flex-wrap">
+                    <input type="text" id="filter-email" placeholder="Filter by email..." class="px-3 py-2 bg-card border border-border-color rounded text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-primary">
+                    <select id="filter-success" class="px-3 py-2 bg-card border border-border-color rounded text-sm text-gray-100 focus:outline-none focus:border-primary">
+                        <option value="">All attempts</option>
+                        <option value="true">Successful only</option>
+                        <option value="false">Failed only</option>
+                    </select>
+                    <button onclick="applyFilters()" class="px-4 py-2 bg-primary text-white text-sm rounded hover:bg-primary-hover transition-colors">Apply</button>
+                </div>
+
+                <!-- Login Attempts Table -->
+                <div class="bg-card rounded-lg overflow-hidden border border-border-color">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-dark">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Email</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Name</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Status</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">IP Address</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="login-attempts-body">
+                                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-4">
+                    <span id="login-pagination-info" class="text-sm text-gray-400"></span>
+                    <div class="flex gap-2">
+                        <button id="login-prev-btn" onclick="loadLoginAttempts(currentLoginOffset - loginLimit)" class="px-3 py-1 bg-card border border-border-color rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-border-color transition-colors" disabled>Previous</button>
+                        <button id="login-next-btn" onclick="loadLoginAttempts(currentLoginOffset + loginLimit)" class="px-3 py-1 bg-card border border-border-color rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-border-color transition-colors" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management Tab -->
+            <div id="panel-users" class="tab-panel hidden">
+                <!-- Add User Form -->
+                <div class="bg-card rounded-lg p-4 mb-6 border border-border-color">
+                    <h3 class="text-lg font-medium mb-4">Add New User</h3>
+                    <div class="flex gap-4 flex-wrap">
+                        <input type="email" id="new-user-email" placeholder="Email address" class="flex-1 min-w-[200px] px-3 py-2 bg-dark border border-border-color rounded text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-primary">
+                        <select id="new-user-role" class="px-3 py-2 bg-dark border border-border-color rounded text-sm text-gray-100 focus:outline-none focus:border-primary">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button onclick="addUser()" class="px-4 py-2 bg-primary text-white text-sm rounded hover:bg-primary-hover transition-colors">Add User</button>
+                    </div>
+                    <p id="add-user-error" class="mt-2 text-red-500 text-sm hidden"></p>
+                </div>
+
+                <!-- Users Table -->
+                <div class="bg-card rounded-lg overflow-hidden border border-border-color">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-dark">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Email</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-400">Role</th>
+                                    <th class="px-4 py-3 text-right font-medium text-gray-400">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-body">
+                                <tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="px-8 py-4 text-center text-gray-400 text-sm border-t border-border-color">
+            <p>BirdWatch Admin Panel</p>
+        </footer>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[1001]">
+        <div class="bg-card rounded-xl p-6 max-w-[400px] w-[90%]">
+            <h3 class="text-xl font-semibold mb-4">Edit User</h3>
+            <p class="text-gray-400 mb-4" id="edit-user-email"></p>
+            <select id="edit-user-role" class="w-full px-3 py-2 bg-dark border border-border-color rounded text-sm text-gray-100 focus:outline-none focus:border-primary mb-4">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+            </select>
+            <p id="edit-user-error" class="mb-4 text-red-500 text-sm hidden"></p>
+            <div class="flex gap-3 justify-end">
+                <button class="py-2.5 px-5 bg-border-color border-none rounded-md text-gray-100 text-sm cursor-pointer transition-colors hover:bg-gray-500" onclick="closeEditModal()">Cancel</button>
+                <button class="py-2.5 px-5 bg-primary border-none rounded-md text-white text-sm font-medium cursor-pointer transition-colors hover:bg-primary-hover" onclick="saveUserRole()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete User Modal -->
+    <div id="delete-user-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[1001]">
+        <div class="bg-card rounded-xl p-6 max-w-[400px] w-[90%] text-center">
+            <svg class="w-12 h-12 mx-auto mb-4 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <h3 class="text-xl font-semibold mb-2">Delete User</h3>
+            <p class="text-gray-400 mb-6">Are you sure you want to remove <span id="delete-user-email" class="text-gray-100"></span>?</p>
+            <p id="delete-user-error" class="mb-4 text-red-500 text-sm hidden"></p>
+            <div class="flex gap-3 justify-center">
+                <button class="py-2.5 px-5 bg-border-color border-none rounded-md text-gray-100 text-sm cursor-pointer transition-colors hover:bg-gray-500" onclick="closeDeleteModal()">Cancel</button>
+                <button class="py-2.5 px-5 bg-red-500 border-none rounded-md text-white text-sm font-medium cursor-pointer transition-colors hover:bg-red-600" onclick="confirmDeleteUser()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/birdwatch/static/js/heartbeat.js"></script>
+    <script src="/birdwatch/static/js/admin.js"></script>
+</body>
+</html>
