@@ -6,16 +6,17 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
 // Sighting represents a bird sighting record
 type Sighting struct {
-	ID        int64     `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	ImagePath string    `json:"image_path"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         int64     `json:"id"`
+	Timestamp  time.Time `json:"timestamp"`
+	ImagePaths []string  `json:"image_paths"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // SightingService manages bird sightings storage
@@ -55,12 +56,35 @@ func newSightingService() (*SightingService, error) {
 		CREATE TABLE IF NOT EXISTS sightings (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			timestamp DATETIME NOT NULL,
-			image_path TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sightings table: %w", err)
+	}
+
+	// Create sighting_images table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS sighting_images (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			sighting_id INTEGER NOT NULL,
+			image_path TEXT NOT NULL,
+			capture_order INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (sighting_id) REFERENCES sightings(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sighting_images table: %w", err)
+	}
+
+	// Create index on sighting_id for faster lookups
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sighting_images_sighting_id
+		ON sighting_images(sighting_id)
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sighting_images index: %w", err)
 	}
 
 	log.Printf("Sighting service initialized: images=%s", imageDir)
@@ -71,31 +95,18 @@ func newSightingService() (*SightingService, error) {
 	}, nil
 }
 
-// CreateSighting saves a new sighting with its image
-func (s *SightingService) CreateSighting(timestamp time.Time, imageData io.Reader) (*Sighting, error) {
-	// Generate unique filename
-	filename := fmt.Sprintf("%d.jpg", time.Now().UnixNano())
-	imagePath := filepath.Join(s.imageDir, filename)
-
-	// Save image to disk
-	file, err := os.Create(imagePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create image file: %w", err)
-	}
-	defer file.Close()
-
-	if _, err := io.Copy(file, imageData); err != nil {
-		os.Remove(imagePath)
-		return nil, fmt.Errorf("failed to write image file: %w", err)
+// CreateSighting saves a new sighting with its images
+func (s *SightingService) CreateSighting(timestamp time.Time, images []io.Reader) (*Sighting, error) {
+	if len(images) == 0 {
+		return nil, fmt.Errorf("at least one image is required")
 	}
 
-	// Insert into database (store relative path)
+	// Insert sighting into database
 	result, err := s.db.Exec(
-		"INSERT INTO sightings (timestamp, image_path) VALUES (?, ?)",
-		timestamp, filename,
+		"INSERT INTO sightings (timestamp) VALUES (?)",
+		timestamp,
 	)
 	if err != nil {
-		os.Remove(imagePath)
 		return nil, fmt.Errorf("failed to insert sighting: %w", err)
 	}
 
@@ -104,11 +115,62 @@ func (s *SightingService) CreateSighting(timestamp time.Time, imageData io.Reade
 		return nil, fmt.Errorf("failed to get sighting ID: %w", err)
 	}
 
+	// Save each image
+	savedPaths := make([]string, 0, len(images))
+	for i, imageData := range images {
+		// Generate unique filename
+		filename := fmt.Sprintf("%d_%d.jpg", time.Now().UnixNano(), i)
+		imagePath := filepath.Join(s.imageDir, filename)
+
+		// Save image to disk
+		file, err := os.Create(imagePath)
+		if err != nil {
+			// Cleanup already saved images
+			for _, p := range savedPaths {
+				os.Remove(filepath.Join(s.imageDir, p))
+			}
+			s.db.Exec("DELETE FROM sightings WHERE id = ?", id)
+			s.db.Exec("DELETE FROM sighting_images WHERE sighting_id = ?", id)
+			return nil, fmt.Errorf("failed to create image file: %w", err)
+		}
+
+		if _, err := io.Copy(file, imageData); err != nil {
+			file.Close()
+			os.Remove(imagePath)
+			// Cleanup already saved images
+			for _, p := range savedPaths {
+				os.Remove(filepath.Join(s.imageDir, p))
+			}
+			s.db.Exec("DELETE FROM sightings WHERE id = ?", id)
+			s.db.Exec("DELETE FROM sighting_images WHERE sighting_id = ?", id)
+			return nil, fmt.Errorf("failed to write image file: %w", err)
+		}
+		file.Close()
+
+		// Insert image reference into database
+		_, err = s.db.Exec(
+			"INSERT INTO sighting_images (sighting_id, image_path, capture_order) VALUES (?, ?, ?)",
+			id, filename, i,
+		)
+		if err != nil {
+			os.Remove(imagePath)
+			// Cleanup already saved images
+			for _, p := range savedPaths {
+				os.Remove(filepath.Join(s.imageDir, p))
+			}
+			s.db.Exec("DELETE FROM sightings WHERE id = ?", id)
+			s.db.Exec("DELETE FROM sighting_images WHERE sighting_id = ?", id)
+			return nil, fmt.Errorf("failed to insert image reference: %w", err)
+		}
+
+		savedPaths = append(savedPaths, filename)
+	}
+
 	return &Sighting{
-		ID:        id,
-		Timestamp: timestamp,
-		ImagePath: filename,
-		CreatedAt: time.Now(),
+		ID:         id,
+		Timestamp:  timestamp,
+		ImagePaths: savedPaths,
+		CreatedAt:  time.Now(),
 	}, nil
 }
 
@@ -136,8 +198,15 @@ func parseTimestamp(s string) time.Time {
 
 // GetSightings returns sightings with pagination (newest first)
 func (s *SightingService) GetSightings(limit, offset int) ([]Sighting, error) {
-	rows, err := s.db.Query(
-		"SELECT id, timestamp, image_path, created_at FROM sightings ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+	// Query sightings with aggregated image paths
+	rows, err := s.db.Query(`
+		SELECT s.id, s.timestamp, s.created_at,
+			GROUP_CONCAT(si.image_path ORDER BY si.capture_order) as image_paths
+		FROM sightings s
+		LEFT JOIN sighting_images si ON s.id = si.sighting_id
+		GROUP BY s.id
+		ORDER BY s.timestamp DESC
+		LIMIT ? OFFSET ?`,
 		limit, offset,
 	)
 	if err != nil {
@@ -149,11 +218,20 @@ func (s *SightingService) GetSightings(limit, offset int) ([]Sighting, error) {
 	for rows.Next() {
 		var sighting Sighting
 		var timestampStr, createdAtStr string
-		if err := rows.Scan(&sighting.ID, &timestampStr, &sighting.ImagePath, &createdAtStr); err != nil {
+		var imagePathsStr *string
+		if err := rows.Scan(&sighting.ID, &timestampStr, &createdAtStr, &imagePathsStr); err != nil {
 			return nil, fmt.Errorf("failed to scan sighting: %w", err)
 		}
 		sighting.Timestamp = parseTimestamp(timestampStr)
 		sighting.CreatedAt = parseTimestamp(createdAtStr)
+
+		// Parse comma-separated image paths
+		if imagePathsStr != nil && *imagePathsStr != "" {
+			sighting.ImagePaths = strings.Split(*imagePathsStr, ",")
+		} else {
+			sighting.ImagePaths = []string{}
+		}
+
 		sightings = append(sightings, sighting)
 	}
 
@@ -179,24 +257,49 @@ func (s *SightingService) GetImagePath(filename string) string {
 	return filepath.Join(s.imageDir, filename)
 }
 
-// DeleteSighting removes a sighting and its image
+// DeleteSighting removes a sighting and all its images
 func (s *SightingService) DeleteSighting(id int64) error {
-	// Get image path first
-	var imagePath string
-	err := s.db.QueryRow("SELECT image_path FROM sightings WHERE id = ?", id).Scan(&imagePath)
+	// Get all image paths first
+	rows, err := s.db.Query("SELECT image_path FROM sighting_images WHERE sighting_id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to query sighting images: %w", err)
+	}
+
+	var imagePaths []string
+	for rows.Next() {
+		var imagePath string
+		if err := rows.Scan(&imagePath); err != nil {
+			rows.Close()
+			return fmt.Errorf("failed to scan image path: %w", err)
+		}
+		imagePaths = append(imagePaths, imagePath)
+	}
+	rows.Close()
+
+	// Check if sighting exists
+	var exists int
+	err = s.db.QueryRow("SELECT 1 FROM sightings WHERE id = ?", id).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("sighting not found: %w", err)
 	}
 
-	// Delete from database
+	// Delete from sighting_images table
+	_, err = s.db.Exec("DELETE FROM sighting_images WHERE sighting_id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete sighting images: %w", err)
+	}
+
+	// Delete from sightings table
 	_, err = s.db.Exec("DELETE FROM sightings WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete sighting: %w", err)
 	}
 
-	// Delete image file
-	fullPath := filepath.Join(s.imageDir, imagePath)
-	os.Remove(fullPath) // Ignore error if file doesn't exist
+	// Delete image files
+	for _, imagePath := range imagePaths {
+		fullPath := filepath.Join(s.imageDir, imagePath)
+		os.Remove(fullPath) // Ignore error if file doesn't exist
+	}
 
 	return nil
 }

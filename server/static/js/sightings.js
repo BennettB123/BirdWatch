@@ -14,6 +14,14 @@
     let selectedSightings = new Set();
     let isAdmin = false;
 
+    // Lightbox state for multi-image navigation
+    let lightboxImages = [];
+    let lightboxCurrentIndex = 0;
+    let lightboxTime = '';
+    let lightboxDate = '';
+    let touchStartX = 0;
+    let touchEndX = 0;
+
     // Fetch sightings from API
     async function fetchSightings(offset = 0, append = false) {
         try {
@@ -100,8 +108,11 @@
                 year: 'numeric'
             });
 
-            const imageUrl = `${BASE_PATH}/api/sightings/images/${sighting.image_path}`;
+            // Handle both old single image_path and new image_paths array
+            const imagePaths = sighting.image_paths || (sighting.image_path ? [sighting.image_path] : []);
+            const primaryImageUrl = imagePaths.length > 0 ? `${BASE_PATH}/api/sightings/images/${imagePaths[0]}` : '';
             const checkboxVisibleClass = (selectMode && isAdmin) ? 'flex' : 'hidden';
+            const imageCount = imagePaths.length;
 
             // Only show menu button for admins
             const menuHtml = isAdmin ? `
@@ -126,13 +137,48 @@
                 </div>
             ` : '';
 
+            // Build stacked image HTML
+            let stackedImagesHtml = '';
+            if (imageCount > 1) {
+                // Show stacked cards effect (up to 3 images)
+                const stackCount = Math.min(imageCount, 3);
+                for (let i = stackCount - 1; i >= 0; i--) {
+                    const offset = i * 4;
+                    const zIndex = stackCount - i;
+                    const opacity = i === 0 ? 1 : 0.6;
+                    const imgUrl = `${BASE_PATH}/api/sightings/images/${imagePaths[i]}`;
+                    stackedImagesHtml += `
+                        <div class="absolute inset-0 rounded-t-lg overflow-hidden" style="transform: translate(${offset}px, ${offset}px); z-index: ${zIndex}; opacity: ${opacity};">
+                            <img class="w-full h-full object-cover" src="${imgUrl}" alt="Bird sighting" loading="lazy">
+                        </div>
+                    `;
+                }
+                // Add photo count badge
+                stackedImagesHtml += `
+                    <div class="absolute bottom-2 left-2 z-10 bg-black/70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        ${imageCount}
+                    </div>
+                `;
+            } else if (imageCount === 1) {
+                stackedImagesHtml = `<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" src="${primaryImageUrl}" alt="Bird sighting" loading="lazy">`;
+            }
+
+            card.dataset.imagePaths = JSON.stringify(imagePaths);
+            card.dataset.time = timeStr;
+            card.dataset.date = dateStr;
+
             card.innerHTML = `
                 <div class="sighting-checkbox absolute top-2 left-2 z-10 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
                     <input type="checkbox" class="w-[18px] h-[18px] cursor-pointer" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
                 </div>
                 ${menuHtml}
-                <div class="relative aspect-video overflow-hidden cursor-pointer" onclick="handleCardClick(event, '${imageUrl}', '${timeStr}', '${dateStr}', ${sighting.id})">
-                    <img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" src="${imageUrl}" alt="Bird sighting" loading="lazy">
+                <div class="sighting-image-area relative aspect-video overflow-hidden cursor-pointer ${imageCount > 1 ? 'pb-2 pr-2' : ''}">
+                    ${stackedImagesHtml}
                 </div>
                 <div class="p-4">
                     <div class="text-gray-100 text-sm font-medium">${timeStr}</div>
@@ -149,13 +195,40 @@
     }
 
     // Lightbox functions
-    window.openLightbox = function (imageUrl, time, date) {
+    window.openLightbox = function (imagePaths, time, date) {
         const lightbox = document.getElementById('lightbox');
         const lightboxImage = document.getElementById('lightbox-image');
         const lightboxInfo = document.getElementById('lightbox-info');
+        const lightboxCounter = document.getElementById('lightbox-counter');
+        const prevBtn = document.getElementById('lightbox-prev');
+        const nextBtn = document.getElementById('lightbox-next');
 
-        if (lightboxImage) lightboxImage.src = imageUrl;
+        // Ensure imagePaths is an array
+        if (!Array.isArray(imagePaths)) {
+            imagePaths = [imagePaths];
+        }
+
+        // Store state for navigation
+        lightboxImages = imagePaths.map(p => `${BASE_PATH}/api/sightings/images/${p}`);
+        lightboxCurrentIndex = 0;
+        lightboxTime = time;
+        lightboxDate = date;
+
+        // Show first image
+        if (lightboxImage && lightboxImages.length > 0) {
+            lightboxImage.src = lightboxImages[0];
+        }
         if (lightboxInfo) lightboxInfo.textContent = `${time} - ${date}`;
+
+        // Show/hide navigation based on image count
+        const hasMultiple = lightboxImages.length > 1;
+        if (prevBtn) prevBtn.classList.toggle('hidden', !hasMultiple);
+        if (nextBtn) nextBtn.classList.toggle('hidden', !hasMultiple);
+        if (lightboxCounter) {
+            lightboxCounter.classList.toggle('hidden', !hasMultiple);
+            lightboxCounter.textContent = `1 / ${lightboxImages.length}`;
+        }
+
         if (lightbox) {
             lightbox.classList.remove('hidden');
             lightbox.classList.add('flex');
@@ -170,17 +243,55 @@
             lightbox.classList.remove('flex');
             document.body.style.overflow = '';
         }
+        // Reset state
+        lightboxImages = [];
+        lightboxCurrentIndex = 0;
     };
 
-    // Handle card click - either select or open lightbox
-    window.handleCardClick = function (event, imageUrl, time, date, sightingId) {
+    window.lightboxPrev = function () {
+        if (lightboxImages.length <= 1) return;
+        lightboxCurrentIndex = (lightboxCurrentIndex - 1 + lightboxImages.length) % lightboxImages.length;
+        updateLightboxImage();
+    };
+
+    window.lightboxNext = function () {
+        if (lightboxImages.length <= 1) return;
+        lightboxCurrentIndex = (lightboxCurrentIndex + 1) % lightboxImages.length;
+        updateLightboxImage();
+    };
+
+    function updateLightboxImage() {
+        const lightboxImage = document.getElementById('lightbox-image');
+        const lightboxCounter = document.getElementById('lightbox-counter');
+
+        if (lightboxImage) {
+            lightboxImage.src = lightboxImages[lightboxCurrentIndex];
+        }
+        if (lightboxCounter) {
+            lightboxCounter.textContent = `${lightboxCurrentIndex + 1} / ${lightboxImages.length}`;
+        }
+    }
+
+    // Handle card image click - either select or open lightbox
+    function handleCardImageClick(event) {
+        const imageArea = event.target.closest('.sighting-image-area');
+        if (!imageArea) return;
+
+        const card = imageArea.closest('.sighting-card');
+        if (!card) return;
+
+        const sightingId = parseInt(card.dataset.sightingId, 10);
+
         if (selectMode && isAdmin) {
             event.preventDefault();
             toggleSightingSelection(event, sightingId);
         } else {
-            openLightbox(imageUrl, time, date);
+            const imagePaths = JSON.parse(card.dataset.imagePaths || '[]');
+            const time = card.dataset.time;
+            const date = card.dataset.date;
+            openLightbox(imagePaths, time, date);
         }
-    };
+    }
 
     // Toggle select mode (admin only)
     window.toggleSelectMode = function () {
@@ -409,14 +520,52 @@
 
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', function () {
-        // Close lightbox and menus on escape key
+        // Keyboard navigation for lightbox
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeLightbox();
                 closeAllMenus();
                 closeDeleteModal();
+            } else if (e.key === 'ArrowLeft') {
+                const lightbox = document.getElementById('lightbox');
+                if (lightbox && !lightbox.classList.contains('hidden')) {
+                    lightboxPrev();
+                }
+            } else if (e.key === 'ArrowRight') {
+                const lightbox = document.getElementById('lightbox');
+                if (lightbox && !lightbox.classList.contains('hidden')) {
+                    lightboxNext();
+                }
             }
         });
+
+        // Touch/swipe support for lightbox
+        const lightbox = document.getElementById('lightbox');
+        if (lightbox) {
+            lightbox.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            lightbox.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+        }
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+
+            if (Math.abs(diff) < swipeThreshold) return;
+
+            if (diff > 0) {
+                // Swipe left - next image
+                lightboxNext();
+            } else {
+                // Swipe right - previous image
+                lightboxPrev();
+            }
+        }
 
         // Close menus when clicking outside
         document.addEventListener('click', (e) => {
@@ -425,8 +574,17 @@
             }
         });
 
+        // Handle clicks on sighting card images (event delegation)
+        const grid = document.getElementById('sightings-grid');
+        if (grid) {
+            grid.addEventListener('click', (e) => {
+                if (e.target.closest('.sighting-image-area')) {
+                    handleCardImageClick(e);
+                }
+            });
+        }
+
         // Close lightbox on background click
-        const lightbox = document.getElementById('lightbox');
         if (lightbox) {
             lightbox.addEventListener('click', (e) => {
                 if (e.target.id === 'lightbox') closeLightbox();

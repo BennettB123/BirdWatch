@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -28,17 +29,41 @@ func HandleCreateSighting(c *gin.Context) {
 		return
 	}
 
-	// Get image file
-	file, _, err := c.Request.FormFile("image")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "image is required"})
+	// Collect all image files (image, image2, image3, ... up to image10)
+	var images []io.Reader
+	var closers []io.Closer
+
+	// Try to get "image" first
+	if file, _, err := c.Request.FormFile("image"); err == nil {
+		images = append(images, file)
+		closers = append(closers, file)
+	}
+
+	// Try to get image2 through image10
+	for i := 2; i <= 10; i++ {
+		fieldName := "image" + strconv.Itoa(i)
+		if file, _, err := c.Request.FormFile(fieldName); err == nil {
+			images = append(images, file)
+			closers = append(closers, file)
+		}
+	}
+
+	// Ensure cleanup
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
+
+	// At least one image required
+	if len(images) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one image is required"})
 		return
 	}
-	defer file.Close()
 
 	// Create sighting
 	sightingService := services.GetSightingService()
-	sighting, err := sightingService.CreateSighting(timestamp, file)
+	sighting, err := sightingService.CreateSighting(timestamp, images)
 	if err != nil {
 		log.Printf("Failed to create sighting: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create sighting"})

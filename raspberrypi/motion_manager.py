@@ -140,39 +140,53 @@ class MotionDetectionManager:
         logger.debug("Motion detection loop stopped")
 
     def _delayed_capture_and_send(self):
-        """Wait for motion to settle, then capture and send screenshot."""
+        """Wait for motion to settle, then capture multiple frames and send."""
         try:
             # Wait for bird to land/settle
-            logger.debug(f"Waiting {config.MOTION_CAPTURE_DELAY}s before capturing screenshot")
+            logger.debug(f"Waiting {config.MOTION_CAPTURE_DELAY}s before capturing screenshots")
             time.sleep(config.MOTION_CAPTURE_DELAY)
 
-            # Capture a fresh frame AFTER the delay
-            frame = self._camera_manager.capture_frame()
-            if frame is not None:
-                logger.debug("Capturing screenshot after delay")
-                self._send_motion_event(frame)
+            # Capture multiple frames at intervals
+            frames = []
+            for i in range(config.MOTION_CAPTURE_COUNT):
+                if i > 0:
+                    time.sleep(config.MOTION_CAPTURE_INTERVAL)
+
+                frame = self._camera_manager.capture_frame()
+                if frame is not None:
+                    frames.append(frame)
+                    logger.debug(f"Captured frame {i + 1}/{config.MOTION_CAPTURE_COUNT}")
+                else:
+                    logger.warning(f"Failed to capture frame {i + 1}/{config.MOTION_CAPTURE_COUNT}")
+
+            if frames:
+                logger.debug(f"Captured {len(frames)} frames, sending to server")
+                self._send_motion_event_multi(frames)
             else:
-                logger.warning("Failed to capture delayed screenshot")
+                logger.warning("Failed to capture any frames")
 
         except Exception as e:
             logger.error(f"Error in delayed capture: {e}")
 
-    def _send_motion_event(self, frame: np.ndarray):
-        """Send motion detection event to server.
+    def _send_motion_event_multi(self, frames: list):
+        """Send motion detection event with multiple frames to server.
 
         Args:
-            frame: BGR frame to send as screenshot
+            frames: List of BGR frames to send as screenshots
         """
         try:
             timestamp = datetime.now(ZoneInfo("America/New_York")).isoformat()
 
-            # Encode frame as JPEG (already BGR format for OpenCV)
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            # Prepare multipart form data with multiple images
+            files = []
+            for i, frame in enumerate(frames):
+                # Encode frame as JPEG (already BGR format for OpenCV)
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
 
-            # Prepare multipart form data
-            files = {
-                'image': ('sighting.jpg', buffer.tobytes(), 'image/jpeg')
-            }
+                # First image uses 'image', subsequent use 'image2', 'image3', etc.
+                field_name = 'image' if i == 0 else f'image{i + 1}'
+                files.append((field_name, (f'sighting_{i}.jpg', buffer.tobytes(), 'image/jpeg')))
+
             data = {
                 'timestamp': timestamp
             }
@@ -183,11 +197,11 @@ class MotionDetectionManager:
                 headers={'X-Pi-Secret': config.PI_SECRET},
                 files=files,
                 data=data,
-                timeout=10
+                timeout=30
             )
 
             if response.status_code == 201:
-                logger.info(f"Sighting sent successfully at {timestamp}")
+                logger.info(f"Sighting with {len(frames)} images sent successfully at {timestamp}")
             else:
                 logger.warning(f"Sighting upload failed with status {response.status_code}: {response.text}")
 
