@@ -86,3 +86,6 @@ temp/
 # Claude
 .claude/
 CLAUDE.md
+
+# Dev tools
+tools/

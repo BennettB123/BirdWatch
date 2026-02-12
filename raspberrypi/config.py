@@ -50,6 +50,20 @@ def optional_env_bool(key: str, default: bool) -> bool:
         return default
     return value in ('true', '1', 'yes', 'on')
 
+def _parse_focus_position():
+    value = os.environ.get('BIRDWATCH_CAMERA_FOCUS_POSITION')
+    if not value:
+        return None
+    try:
+        pos = float(value)
+        if pos < 0:
+            print(f"WARNING: BIRDWATCH_CAMERA_FOCUS_POSITION must be >= 0, got: {value}. Ignoring.", file=sys.stderr)
+            return None
+        return pos
+    except ValueError:
+        print(f"WARNING: BIRDWATCH_CAMERA_FOCUS_POSITION must be a number, got: {value}. Ignoring.", file=sys.stderr)
+        return None
+
 
 # Server/API configuration
 SERVER_URL = require_env('BIRDWATCH_SERVER_URL')
@@ -80,3 +94,5 @@ MOTION_HISTORY = optional_env_int('BIRDWATCH_MOTION_HISTORY', 500)
 MOTION_CAPTURE_COUNT = optional_env_int('BIRDWATCH_MOTION_CAPTURE_COUNT', 3)
 MOTION_CAPTURE_INTERVAL = optional_env_int('BIRDWATCH_MOTION_CAPTURE_INTERVAL', 1)
 SIGHTINGS_ENDPOINT = f"{SERVER_URL}/birdwatch/api/sightings"
+CAMERA_AUTOFOCUS = optional_env_bool('BIRDWATCH_CAMERA_AUTOFOCUS', True)
+CAMERA_FOCUS_POSITION = _parse_focus_position()

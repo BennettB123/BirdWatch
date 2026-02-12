@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 import numpy as np
+from libcamera import controls
 from picamera2 import Picamera2
 
 import config
@@ -62,6 +63,20 @@ class CameraManager:
 
             # Start camera
             self._picam2.start()
+
+            # Apply focus settings
+            if config.CAMERA_AUTOFOCUS:
+                self._picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+                logger.info("Camera autofocus: continuous")
+            else:
+                focus_controls = {"AfMode": controls.AfModeEnum.Manual}
+                if config.CAMERA_FOCUS_POSITION is not None:
+                    focus_controls["LensPosition"] = config.CAMERA_FOCUS_POSITION
+                    logger.info(f"Camera manual focus: {config.CAMERA_FOCUS_POSITION} dioptres")
+                else:
+                    focus_controls["LensPosition"] = 0.0
+                    logger.info("Camera manual focus: 0.0 dioptres (infinity)")
+                self._picam2.set_controls(focus_controls)
 
             self._is_running = True
             logger.info("Camera started successfully")
