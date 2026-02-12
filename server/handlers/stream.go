@@ -15,6 +15,15 @@ import (
 
 // HandlePlaylist serves the HLS playlist (m3u8)
 func HandlePlaylist(c *gin.Context) {
+	if config.AppConfig.IsStreamDowntime() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":        "stream_downtime",
+			"message":      "Stream is offline during scheduled downtime",
+			"downtime_end": config.AppConfig.StreamDowntimeEnd,
+		})
+		return
+	}
+
 	session := sessions.Default(c)
 	email := session.Get("email")
 	if email != nil {
@@ -86,7 +95,9 @@ func HandleHeartbeat(c *gin.Context) {
 		return
 	}
 
-	services.GetSessionManager().Heartbeat(email.(string))
+	if !config.AppConfig.IsStreamDowntime() {
+		services.GetSessionManager().Heartbeat(email.(string))
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",

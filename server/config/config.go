@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
@@ -45,6 +46,8 @@ type Config struct {
 	PushoverUserKey      string
 	PushoverAdminUserKey string
 	DataDir              string
+	StreamDowntimeStart  string
+	StreamDowntimeEnd    string
 
 	emailsMu      sync.RWMutex
 	allowedEmails map[string]string // email -> role (admin or user)
@@ -73,8 +76,13 @@ func Load() *Config {
 		PushoverUserKey:      os.Getenv("BIRDWATCH_PUSHOVER_USER_KEY"),
 		PushoverAdminUserKey: os.Getenv("BIRDWATCH_PUSHOVER_ADMIN_USER_KEY"),
 		DataDir:              requireEnv("BIRDWATCH_DATA_DIR"),
+		StreamDowntimeStart:  os.Getenv("BIRDWATCH_STREAM_DOWNTIME_START"),
+		StreamDowntimeEnd:    os.Getenv("BIRDWATCH_STREAM_DOWNTIME_END"),
 		allowedEmails:        make(map[string]string),
 	}
+
+	// Validate stream downtime config
+	validateStreamDowntime(config.StreamDowntimeStart, config.StreamDowntimeEnd)
 
 	// Load OAuth config from google_auth.json
 	config.OAuthConfig = loadOAuthConfig(config.GoogleAuthFile)
@@ -260,4 +268,43 @@ func (c *Config) IsPushoverEnabled() bool {
 
 func (c *Config) IsPushoverAdminEnabled() bool {
 	return c.PushoverAPIToken != "" && c.PushoverAdminUserKey != ""
+}
+
+// validateStreamDowntime checks that both or neither downtime env vars are set and that they use valid HH:MM format.
+func validateStreamDowntime(start, end string) {
+	if start == "" && end == "" {
+		return
+	}
+	if (start == "") != (end == "") {
+		log.Fatalf("Both BIRDWATCH_STREAM_DOWNTIME_START and BIRDWATCH_STREAM_DOWNTIME_END must be set, or neither")
+	}
+	if _, err := time.Parse("15:04", start); err != nil {
+		log.Fatalf("Invalid BIRDWATCH_STREAM_DOWNTIME_START format %q: expected HH:MM (24h)", start)
+	}
+	if _, err := time.Parse("15:04", end); err != nil {
+		log.Fatalf("Invalid BIRDWATCH_STREAM_DOWNTIME_END format %q: expected HH:MM (24h)", end)
+	}
+}
+
+// IsStreamDowntime returns true if the current local time falls within the configured downtime window.
+func (c *Config) IsStreamDowntime() bool {
+	if c.StreamDowntimeStart == "" || c.StreamDowntimeEnd == "" {
+		return false
+	}
+
+	startTime, _ := time.Parse("15:04", c.StreamDowntimeStart)
+	endTime, _ := time.Parse("15:04", c.StreamDowntimeEnd)
+
+	startMinutes := startTime.Hour()*60 + startTime.Minute()
+	endMinutes := endTime.Hour()*60 + endTime.Minute()
+
+	now := time.Now()
+	nowMinutes := now.Hour()*60 + now.Minute()
+
+	if startMinutes <= endMinutes {
+		// Same-day window (e.g. 08:00 - 17:00)
+		return nowMinutes >= startMinutes && nowMinutes < endMinutes
+	}
+	// Overnight window (e.g. 23:00 - 06:00)
+	return nowMinutes >= startMinutes || nowMinutes < endMinutes
 }

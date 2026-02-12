@@ -29,6 +29,11 @@ func main() {
 	log.Printf("RTMP port: %s", cfg.RTMPPort)
 	log.Printf("HTTP port: %s", cfg.Port)
 	log.Printf("Allowed emails file: %s (%d emails loaded)", cfg.AllowedEmailsFile, cfg.GetAllowedEmailCount())
+	if cfg.StreamDowntimeStart != "" {
+		log.Printf("Stream downtime: %s - %s", cfg.StreamDowntimeStart, cfg.StreamDowntimeEnd)
+	} else {
+		log.Printf("Stream downtime: disabled (24/7 streaming)")
+	}
 
 	// Ensure HLS directory exists
 	if err := os.MkdirAll(cfg.HLSDir, 0755); err != nil {

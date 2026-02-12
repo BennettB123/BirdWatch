@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"birdwatch/config"
 	"birdwatch/services"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,15 @@ import (
 // HandlePiStatus returns whether streaming should be active
 // Called by Pi to determine if it should start/stop streaming
 func HandlePiStatus(c *gin.Context) {
+	// send no users if we're in the downtime period
+	if config.AppConfig.IsStreamDowntime() {
+		c.JSON(http.StatusOK, gin.H{
+			"stream":     false,
+			"user_count": 0,
+		})
+		return
+	}
+
 	sessionMgr := services.GetSessionManager()
 	hasActiveUsers := sessionMgr.HasActiveUsers()
 

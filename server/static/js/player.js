@@ -14,6 +14,10 @@
     const video = document.getElementById('video');
     const videoContainer = document.getElementById('video-container');
     const streamWaiting = document.getElementById('stream-waiting');
+    const streamDowntime = document.getElementById('stream-downtime');
+    const downtimeEndTime = document.getElementById('downtime-end-time');
+
+    let isDowntime = false;
 
     // Show/hide waiting indicator
     function showWaiting() {
@@ -27,6 +31,30 @@
         if (streamWaiting) {
             streamWaiting.classList.add('hidden');
             streamWaiting.classList.remove('flex');
+        }
+    }
+
+    function showDowntime(endTime) {
+        isDowntime = true;
+        if (downtimeEndTime && endTime) {
+            downtimeEndTime.textContent = endTime;
+        }
+        if (streamDowntime) {
+            streamDowntime.classList.remove('hidden');
+            streamDowntime.classList.add('flex');
+        }
+        // Hide the spinner since we're showing the downtime banner instead
+        if (streamWaiting) {
+            streamWaiting.classList.add('hidden');
+            streamWaiting.classList.remove('flex');
+        }
+    }
+
+    function hideDowntime() {
+        isDowntime = false;
+        if (streamDowntime) {
+            streamDowntime.classList.add('hidden');
+            streamDowntime.classList.remove('flex');
         }
     }
 
@@ -172,7 +200,27 @@
             }
         });
 
-        // Load the stream - Shaka will handle retries automatically
+        // Check for downtime before loading
+        checkDowntimeAndLoad(streamUrl);
+    }
+
+    // Check if stream is in downtime, and only load when it's not
+    async function checkDowntimeAndLoad(streamUrl) {
+        try {
+            const response = await fetch(streamUrl);
+            if (response.status === 503) {
+                const data = await response.json();
+                if (data.error === 'stream_downtime') {
+                    showDowntime(data.downtime_end);
+                    setTimeout(() => checkDowntimeAndLoad(streamUrl), 30000);
+                    return;
+                }
+            }
+        } catch (e) {
+            // Network error or non-JSON response, fall through to normal load
+        }
+
+        hideDowntime();
         player.load(streamUrl).catch(function (error) {
             console.error('Load failed:', error);
             showWaiting();
@@ -191,13 +239,7 @@
         }
 
         const streamUrl = BASE_PATH + '/api/stream/playlist.m3u8';
-        try {
-            await player.load(streamUrl);
-        } catch (error) {
-            console.error('Reload failed:', error);
-            // Try again after another delay
-            setTimeout(reloadPlayer, 10000);
-        }
+        await checkDowntimeAndLoad(streamUrl);
     }
 
     function cleanup() {
