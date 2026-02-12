@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"birdwatch/config"
 
@@ -16,6 +17,11 @@ func RequireAuth() gin.HandlerFunc {
 
 		if email == nil {
 			basePath := config.AppConfig.BasePath
+			if strings.HasPrefix(c.Request.URL.Path, basePath+"/api/") {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "session_expired"})
+				c.Abort()
+				return
+			}
 			c.Redirect(http.StatusFound, basePath+"/")
 			c.Abort()
 			return

@@ -17,6 +17,10 @@
 
         try {
             const response = await fetch(BASE_PATH + '/api/user');
+            if (response.status === 401) {
+                window.location.href = BASE_PATH + '/';
+                return;
+            }
             if (response.ok) {
                 const user = await response.json();
                 currentUserRole = user.role || 'user';

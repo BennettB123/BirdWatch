@@ -48,6 +48,7 @@ type Config struct {
 	DataDir              string
 	StreamDowntimeStart  string
 	StreamDowntimeEnd    string
+	StreamDowntimeTZ     *time.Location
 
 	emailsMu      sync.RWMutex
 	allowedEmails map[string]string // email -> role (admin or user)
@@ -81,8 +82,9 @@ func Load() *Config {
 		allowedEmails:        make(map[string]string),
 	}
 
-	// Validate stream downtime config
+	// Validate stream downtime config and load timezone
 	validateStreamDowntime(config.StreamDowntimeStart, config.StreamDowntimeEnd)
+	config.StreamDowntimeTZ = loadDowntimeTimezone(os.Getenv("BIRDWATCH_STREAM_DOWNTIME_TIMEZONE"))
 
 	// Load OAuth config from google_auth.json
 	config.OAuthConfig = loadOAuthConfig(config.GoogleAuthFile)
@@ -286,7 +288,19 @@ func validateStreamDowntime(start, end string) {
 	}
 }
 
-// IsStreamDowntime returns true if the current local time falls within the configured downtime window.
+// loadDowntimeTimezone parses the timezone string, falling back to UTC if empty or invalid.
+func loadDowntimeTimezone(tz string) *time.Location {
+	if tz == "" {
+		return time.UTC
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		log.Fatalf("Invalid BIRDWATCH_STREAM_DOWNTIME_TIMEZONE %q: %v", tz, err)
+	}
+	return loc
+}
+
+// IsStreamDowntime returns true if the current time (in the configured timezone) falls within the configured downtime window.
 func (c *Config) IsStreamDowntime() bool {
 	if c.StreamDowntimeStart == "" || c.StreamDowntimeEnd == "" {
 		return false
@@ -298,7 +312,7 @@ func (c *Config) IsStreamDowntime() bool {
 	startMinutes := startTime.Hour()*60 + startTime.Minute()
 	endMinutes := endTime.Hour()*60 + endTime.Minute()
 
-	now := time.Now()
+	now := time.Now().In(c.StreamDowntimeTZ)
 	nowMinutes := now.Hour()*60 + now.Minute()
 
 	if startMinutes <= endMinutes {

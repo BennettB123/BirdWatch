@@ -77,7 +77,7 @@ func HandleCreateSighting(c *gin.Context) {
 		go notifier.SendNotification(services.NotificationOptions{
 			Title:    "🐦 New Bird Sighting! 🐦",
 			Message:  "A bird was detected at " + timestamp.Format("3:04 PM"),
-			Priority: services.PriorityLow,
+			Priority: services.PriorityNormal,
 			URL:      sightingsURL,
 			URLTitle: "📸 View Sightings 📸",
 		})
