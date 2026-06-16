@@ -79,7 +79,7 @@
     <div id="lightbox" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[1000] p-8 data-[active=true]:flex">
         <div class="max-w-[90vw] max-h-[90vh] relative flex items-center">
             <!-- Previous button -->
-            <button id="lightbox-prev" class="hidden absolute left-[-60px] top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 border-none text-white text-2xl cursor-pointer p-3 rounded-full transition-colors md:left-2 md:bg-black/60" onclick="lightboxPrev()">
+            <button id="lightbox-prev" class="lightbox-nav lightbox-nav-prev hidden absolute top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 border-none text-white text-2xl cursor-pointer p-3 rounded-full transition-colors" onclick="lightboxPrev()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M15 18l-6-6 6-6"/>
                 </svg>
@@ -95,7 +95,7 @@
             </div>
 
             <!-- Next button -->
-            <button id="lightbox-next" class="hidden absolute right-[-60px] top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 border-none text-white text-2xl cursor-pointer p-3 rounded-full transition-colors md:right-2 md:bg-black/60" onclick="lightboxNext()">
+            <button id="lightbox-next" class="lightbox-nav lightbox-nav-next hidden absolute top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 border-none text-white text-2xl cursor-pointer p-3 rounded-full transition-colors" onclick="lightboxNext()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18l6-6-6-6"/>
                 </svg>

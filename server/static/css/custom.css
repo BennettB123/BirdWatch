@@ -62,3 +62,53 @@ input[type="checkbox"] {
     pointer-events: none;
     z-index: 5;
 }
+
+.sighting-carousel {
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    touch-action: pan-y;
+}
+
+.sighting-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+.sighting-carousel-dot.active {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.lightbox-nav {
+    z-index: 2;
+}
+
+.lightbox-nav-prev {
+    left: -60px;
+}
+
+.lightbox-nav-next {
+    right: -60px;
+}
+
+@media (max-width: 640px) {
+    #sightings-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #lightbox {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .lightbox-nav {
+        background: rgba(0, 0, 0, 0.6);
+        padding: 0.625rem;
+    }
+
+    .lightbox-nav-prev {
+        left: 0.5rem;
+    }
+
+    .lightbox-nav-next {
+        right: 0.5rem;
+    }
+}

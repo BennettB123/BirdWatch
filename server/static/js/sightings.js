@@ -21,6 +21,18 @@
     let lightboxDate = '';
     let touchStartX = 0;
     let touchEndX = 0;
+    let carouselPointerStartX = 0;
+    let carouselPointerStartY = 0;
+    let carouselPointerStartIndex = 0;
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
     // Fetch sightings from API
     async function fetchSightings(offset = 0, append = false) {
@@ -92,7 +104,7 @@
 
         sightings.forEach(sighting => {
             const card = document.createElement('div');
-            card.className = 'sighting-card group bg-card rounded-lg overflow-hidden transition-all duration-200 relative hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]';
+            card.className = 'sighting-card group bg-card rounded-lg overflow-hidden transition-shadow duration-200 relative hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]';
             card.dataset.sightingId = sighting.id;
 
             const timestamp = new Date(sighting.timestamp);
@@ -110,7 +122,6 @@
 
             // Handle both old single image_path and new image_paths array
             const imagePaths = sighting.image_paths || (sighting.image_path ? [sighting.image_path] : []);
-            const primaryImageUrl = imagePaths.length > 0 ? `${BASE_PATH}/api/sightings/images/${imagePaths[0]}` : '';
             const checkboxVisibleClass = (selectMode && isAdmin) ? 'flex' : 'hidden';
             const imageCount = imagePaths.length;
 
@@ -137,48 +148,53 @@
                 </div>
             ` : '';
 
-            // Build stacked image HTML
-            let stackedImagesHtml = '';
-            if (imageCount > 1) {
-                // Show stacked cards effect (up to 3 images)
-                const stackCount = Math.min(imageCount, 3);
-                for (let i = stackCount - 1; i >= 0; i--) {
-                    const offset = i * 4;
-                    const zIndex = stackCount - i;
-                    const opacity = i === 0 ? 1 : 0.6;
-                    const imgUrl = `${BASE_PATH}/api/sightings/images/${imagePaths[i]}`;
-                    stackedImagesHtml += `
-                        <div class="absolute inset-0 rounded-t-lg overflow-hidden" style="transform: translate(${offset}px, ${offset}px); z-index: ${zIndex}; opacity: ${opacity};">
-                            <img class="w-full h-full object-cover" src="${imgUrl}" alt="Bird sighting" loading="lazy">
-                        </div>
-                    `;
-                }
-                // Add photo count badge
-                stackedImagesHtml += `
-                    <div class="absolute bottom-2 left-2 z-10 bg-black/70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        ${imageCount}
+            const carouselId = `sighting-carousel-${sighting.id}`;
+            const carouselSlidesHtml = imagePaths.map((imagePath, index) => {
+                const imgUrl = `${BASE_PATH}/api/sightings/images/${encodeURIComponent(imagePath)}`;
+                return `
+                    <div class="sighting-carousel-slide shrink-0 w-full h-full">
+                        <img class="w-full h-full object-cover" src="${imgUrl}" alt="Bird sighting ${index + 1} of ${imageCount}" loading="lazy" draggable="false">
                     </div>
                 `;
-            } else if (imageCount === 1) {
-                stackedImagesHtml = `<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" src="${primaryImageUrl}" alt="Bird sighting" loading="lazy">`;
-            }
+            }).join('');
+            const carouselDotsHtml = imageCount > 1 ? `
+                <div class="sighting-carousel-dots absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 bg-black/45 px-2 py-1 rounded-full">
+                    ${imagePaths.map((_, index) => `
+                        <span class="sighting-carousel-dot w-1.5 h-1.5 rounded-full bg-white/45 transition-colors ${index === 0 ? 'active' : ''}" aria-hidden="true"></span>
+                    `).join('')}
+                </div>
+            ` : '';
+            const imageCountBadgeHtml = imageCount > 1 ? `
+                <div class="absolute top-2 left-2 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    ${imageCount}
+                </div>
+            ` : '';
+            const carouselHtml = imageCount > 0 ? `
+                <div id="${carouselId}" class="sighting-carousel h-full overflow-hidden" tabindex="0" data-current-index="0" aria-label="${imageCount} photos from ${escapeHtml(timeStr)} ${escapeHtml(dateStr)}">
+                    <div class="sighting-carousel-track flex h-full transition-transform duration-300 ease-out">
+                        ${carouselSlidesHtml}
+                    </div>
+                </div>
+                ${imageCountBadgeHtml}
+                ${carouselDotsHtml}
+            ` : '';
 
             card.dataset.imagePaths = JSON.stringify(imagePaths);
             card.dataset.time = timeStr;
             card.dataset.date = dateStr;
 
             card.innerHTML = `
-                <div class="sighting-checkbox absolute top-2 left-2 z-10 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
+                <div class="sighting-checkbox absolute top-2 left-2 z-20 w-6 h-6 ${checkboxVisibleClass} items-center justify-center bg-black/60 rounded cursor-pointer" onclick="toggleSightingSelection(event, ${sighting.id})">
                     <input type="checkbox" class="w-[18px] h-[18px] cursor-pointer" ${selectedSightings.has(sighting.id) ? 'checked' : ''}>
                 </div>
                 ${menuHtml}
-                <div class="sighting-image-area relative aspect-video overflow-hidden cursor-pointer ${imageCount > 1 ? 'pb-2 pr-2' : ''}">
-                    ${stackedImagesHtml}
+                <div class="sighting-image-area relative aspect-video overflow-hidden">
+                    ${carouselHtml}
                 </div>
                 <div class="p-4">
                     <div class="text-gray-100 text-sm font-medium">${timeStr}</div>
@@ -195,7 +211,7 @@
     }
 
     // Lightbox functions
-    window.openLightbox = function (imagePaths, time, date) {
+    window.openLightbox = function (imagePaths, time, date, initialIndex = 0) {
         const lightbox = document.getElementById('lightbox');
         const lightboxImage = document.getElementById('lightbox-image');
         const lightboxInfo = document.getElementById('lightbox-info');
@@ -207,16 +223,17 @@
         if (!Array.isArray(imagePaths)) {
             imagePaths = [imagePaths];
         }
+        if (imagePaths.length === 0) return;
 
         // Store state for navigation
         lightboxImages = imagePaths.map(p => `${BASE_PATH}/api/sightings/images/${p}`);
-        lightboxCurrentIndex = 0;
+        lightboxCurrentIndex = Math.min(Math.max(initialIndex, 0), lightboxImages.length - 1);
         lightboxTime = time;
         lightboxDate = date;
 
-        // Show first image
+        // Show selected image
         if (lightboxImage && lightboxImages.length > 0) {
-            lightboxImage.src = lightboxImages[0];
+            lightboxImage.src = lightboxImages[lightboxCurrentIndex];
         }
         if (lightboxInfo) lightboxInfo.textContent = `${time} - ${date}`;
 
@@ -226,7 +243,7 @@
         if (nextBtn) nextBtn.classList.toggle('hidden', !hasMultiple);
         if (lightboxCounter) {
             lightboxCounter.classList.toggle('hidden', !hasMultiple);
-            lightboxCounter.textContent = `1 / ${lightboxImages.length}`;
+            lightboxCounter.textContent = `${lightboxCurrentIndex + 1} / ${lightboxImages.length}`;
         }
 
         if (lightbox) {
@@ -272,7 +289,89 @@
         }
     }
 
-    // Handle card image click - either select or open lightbox
+    function updateCarouselDots(carousel) {
+        const card = carousel.closest('.sighting-card');
+        if (!card) return;
+
+        const dots = card.querySelectorAll('.sighting-carousel-dot');
+        if (dots.length <= 1) return;
+
+        const activeIndex = getCarouselIndex(carousel);
+        dots.forEach((dot, index) => dot.classList.toggle('active', index === activeIndex));
+    }
+
+    function getCarouselIndex(carousel) {
+        if (!carousel) return 0;
+        const index = parseInt(carousel.dataset.currentIndex || '0', 10);
+        return Number.isNaN(index) ? 0 : index;
+    }
+
+    function scrollCarouselToIndex(carousel, index) {
+        if (!carousel) return;
+
+        const track = carousel.querySelector('.sighting-carousel-track');
+        if (!track) return;
+
+        const maxIndex = Math.max(track.children.length - 1, 0);
+        const nextIndex = Math.min(Math.max(index, 0), maxIndex);
+        carousel.dataset.currentIndex = String(nextIndex);
+        track.style.transform = `translateX(-${nextIndex * 100}%)`;
+        updateCarouselDots(carousel);
+    }
+
+    function handleCarouselPointerDown(event) {
+        const carousel = event.target.closest('.sighting-carousel');
+        if (!carousel) return;
+
+        event.target.setPointerCapture?.(event.pointerId);
+        carouselPointerStartX = event.clientX;
+        carouselPointerStartY = event.clientY;
+        carouselPointerStartIndex = getCarouselIndex(carousel);
+        carousel.dataset.dragged = 'false';
+    }
+
+    function handleCarouselPointerUp(event) {
+        const carousel = event.target.closest('.sighting-carousel');
+        if (!carousel) return;
+
+        const movedX = Math.abs(event.clientX - carouselPointerStartX);
+        const movedY = Math.abs(event.clientY - carouselPointerStartY);
+        const isHorizontalSwipe = movedX > 28 && movedX > movedY;
+        const isTap = movedX <= 8 && movedY <= 8;
+
+        if (isHorizontalSwipe) {
+            const direction = event.clientX < carouselPointerStartX ? 1 : -1;
+            scrollCarouselToIndex(carousel, carouselPointerStartIndex + direction);
+        }
+
+        carousel.dataset.dragged = isTap ? 'false' : 'true';
+    }
+
+    function handleCarouselWheel(event) {
+        const carousel = event.target.closest('.sighting-carousel');
+        if (!carousel) return;
+
+        const primaryDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        if (Math.abs(primaryDelta) < 12) return;
+
+        const currentIndex = getCarouselIndex(carousel);
+        const track = carousel.querySelector('.sighting-carousel-track');
+        const maxIndex = track ? track.children.length - 1 : 0;
+        const nextIndex = currentIndex + (primaryDelta > 0 ? 1 : -1);
+
+        if (nextIndex < 0 || nextIndex > maxIndex) return;
+
+        event.preventDefault();
+        if (carousel.dataset.wheelLocked === 'true') return;
+
+        carousel.dataset.wheelLocked = 'true';
+        scrollCarouselToIndex(carousel, nextIndex);
+        window.setTimeout(() => {
+            carousel.dataset.wheelLocked = 'false';
+        }, 360);
+    }
+
+    // Handle card image click - select in admin mode, otherwise open the current image.
     function handleCardImageClick(event) {
         const imageArea = event.target.closest('.sighting-image-area');
         if (!imageArea) return;
@@ -285,12 +384,19 @@
         if (selectMode && isAdmin) {
             event.preventDefault();
             toggleSightingSelection(event, sightingId);
-        } else {
-            const imagePaths = JSON.parse(card.dataset.imagePaths || '[]');
-            const time = card.dataset.time;
-            const date = card.dataset.date;
-            openLightbox(imagePaths, time, date);
+            return;
         }
+
+        const carousel = imageArea.querySelector('.sighting-carousel');
+        if (carousel && carousel.dataset.dragged === 'true') {
+            carousel.dataset.dragged = 'false';
+            return;
+        }
+
+        const imagePaths = JSON.parse(card.dataset.imagePaths || '[]');
+        const time = card.dataset.time;
+        const date = card.dataset.date;
+        openLightbox(imagePaths, time, date, getCarouselIndex(carousel));
     }
 
     // Toggle select mode (admin only)
@@ -577,11 +683,41 @@
         // Handle clicks on sighting card images (event delegation)
         const grid = document.getElementById('sightings-grid');
         if (grid) {
+            grid.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.sighting-carousel')) {
+                    handleCarouselPointerDown(e);
+                }
+            });
+
+            grid.addEventListener('pointerup', (e) => {
+                if (e.target.closest('.sighting-carousel')) {
+                    handleCarouselPointerUp(e);
+                }
+            });
+
+            grid.addEventListener('pointercancel', (e) => {
+                const carousel = e.target.closest('.sighting-carousel');
+                if (carousel) {
+                    carousel.dataset.dragged = 'true';
+                }
+            });
+
+            grid.addEventListener('dragstart', (e) => {
+                if (e.target.closest('.sighting-carousel')) {
+                    e.preventDefault();
+                }
+            });
+
+            grid.addEventListener('wheel', (e) => {
+                handleCarouselWheel(e);
+            }, { passive: false });
+
             grid.addEventListener('click', (e) => {
                 if (e.target.closest('.sighting-image-area')) {
                     handleCardImageClick(e);
                 }
             });
+
         }
 
         // Close lightbox on background click
