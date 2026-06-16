@@ -63,6 +63,35 @@
                 <button id="select-mode-btn" onclick="toggleSelectMode()" class="hidden px-4 py-2 bg-card border border-border-color rounded-md text-gray-100 text-sm cursor-pointer transition-colors hover:bg-border-color data-[active=true]:bg-primary data-[active=true]:border-primary data-[active=true]:text-white">Select</button>
             </div>
 
+            <div class="filters-bar mb-6">
+                <div class="filters-row">
+                    <label class="favorite-filter-control" aria-label="Show favorite sightings only">
+                        <input id="favorites-filter" type="checkbox">
+                        <span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M11.48 3.5c.2-.5.84-.5 1.04 0l2.08 5.04c.08.2.26.34.48.36l5.44.44c.54.04.74.72.33 1.06l-4.14 3.55c-.16.14-.23.36-.18.57l1.26 5.31c.13.53-.43.95-.89.66l-4.66-2.85a.55.55 0 0 0-.58 0L7 20.49c-.46.29-1.02-.13-.89-.66l1.26-5.31a.57.57 0 0 0-.18-.57L3.05 10.4c-.41-.34-.21-1.02.33-1.06l5.44-.44c.22-.02.4-.16.48-.36L11.48 3.5Z"/>
+                            </svg>
+                            Favorites
+                        </span>
+                    </label>
+                    <div class="date-filter-group" aria-label="Sighting date range">
+                        <label>
+                            <span>From</span>
+                            <input id="start-date-filter" type="date">
+                        </label>
+                        <label>
+                            <span>To</span>
+                            <input id="end-date-filter" type="date">
+                        </label>
+                    </div>
+                    <div class="filter-actions">
+                        <button id="apply-filters" class="filter-apply-btn">Apply</button>
+                        <button id="clear-filters" class="filter-clear-btn">Clear</button>
+                    </div>
+                </div>
+                <p id="filter-error" class="hidden filter-error"></p>
+            </div>
+
             <div id="sightings-grid" class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 md:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] md:gap-4">
                 <div class="text-center p-8 text-gray-400 col-span-full">Loading sightings...</div>
             </div>

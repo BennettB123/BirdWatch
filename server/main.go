@@ -121,6 +121,7 @@ func main() {
 			// Sightings API endpoints (read-only for all authenticated users)
 			protected.GET("/api/sightings", handlers.HandleGetSightings)
 			protected.GET("/api/sightings/images/:filename", handlers.HandleGetSightingImage)
+			protected.PATCH("/api/sightings/:id/favorite", handlers.HandleUpdateSightingFavorite)
 
 			// Stream status (for debugging)
 			protected.GET("/api/stream/status", handlers.HandleStreamStatus)

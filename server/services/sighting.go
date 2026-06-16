@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +18,13 @@ type Sighting struct {
 	Timestamp  time.Time `json:"timestamp"`
 	ImagePaths []string  `json:"image_paths"`
 	CreatedAt  time.Time `json:"created_at"`
+	Favorite   bool      `json:"favorite"`
+}
+
+type SightingFilters struct {
+	FavoritesOnly bool
+	StartDate     *time.Time
+	EndDate       *time.Time
 }
 
 // SightingService manages bird sightings storage
@@ -61,6 +69,10 @@ func newSightingService() (*SightingService, error) {
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sightings table: %w", err)
+	}
+
+	if err := ensureFavoriteColumn(db); err != nil {
+		return nil, err
 	}
 
 	// Create sighting_images table
@@ -171,7 +183,45 @@ func (s *SightingService) CreateSighting(timestamp time.Time, images []io.Reader
 		Timestamp:  timestamp,
 		ImagePaths: savedPaths,
 		CreatedAt:  time.Now(),
+		Favorite:   false,
 	}, nil
+}
+
+func ensureFavoriteColumn(db *DB) error {
+	var favoriteColumnExists bool
+	rows, err := db.Query("PRAGMA table_info(sightings)")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sightings table: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull int
+		var defaultValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("failed to scan sightings table info: %w", err)
+		}
+		if name == "favorite" {
+			favoriteColumnExists = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to inspect sightings table columns: %w", err)
+	}
+
+	if favoriteColumnExists {
+		return nil
+	}
+
+	_, err = db.Exec("ALTER TABLE sightings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0")
+	if err != nil {
+		return fmt.Errorf("failed to add favorite column to sightings: %w", err)
+	}
+	return nil
 }
 
 // parseTimestamp tries multiple formats to parse a timestamp string
@@ -196,19 +246,43 @@ func parseTimestamp(s string) time.Time {
 	return time.Time{}
 }
 
+func buildSightingFilterWhere(filters SightingFilters) (string, []interface{}) {
+	conditions := make([]string, 0, 3)
+	args := make([]interface{}, 0, 3)
+
+	if filters.FavoritesOnly {
+		conditions = append(conditions, "s.favorite = 1")
+	}
+	if filters.StartDate != nil {
+		conditions = append(conditions, "s.timestamp >= ?")
+		args = append(args, filters.StartDate.Format("2006-01-02 15:04:05"))
+	}
+	if filters.EndDate != nil {
+		conditions = append(conditions, "s.timestamp < ?")
+		args = append(args, filters.EndDate.AddDate(0, 0, 1).Format("2006-01-02 15:04:05"))
+	}
+
+	if len(conditions) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(conditions, " AND "), args
+}
+
 // GetSightings returns sightings with pagination (newest first)
-func (s *SightingService) GetSightings(limit, offset int) ([]Sighting, error) {
+func (s *SightingService) GetSightings(limit, offset int, filters SightingFilters) ([]Sighting, error) {
+	whereClause, args := buildSightingFilterWhere(filters)
+	args = append(args, limit, offset)
+
 	// Query sightings with aggregated image paths
-	rows, err := s.db.Query(`
-		SELECT s.id, s.timestamp, s.created_at,
+	rows, err := s.db.Query(fmt.Sprintf(`
+		SELECT s.id, s.timestamp, s.created_at, s.favorite,
 			GROUP_CONCAT(si.image_path ORDER BY si.capture_order) as image_paths
 		FROM sightings s
 		LEFT JOIN sighting_images si ON s.id = si.sighting_id
+		%s
 		GROUP BY s.id
 		ORDER BY s.timestamp DESC
-		LIMIT ? OFFSET ?`,
-		limit, offset,
-	)
+		LIMIT ? OFFSET ?`, whereClause), args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sightings: %w", err)
 	}
@@ -219,11 +293,13 @@ func (s *SightingService) GetSightings(limit, offset int) ([]Sighting, error) {
 		var sighting Sighting
 		var timestampStr, createdAtStr string
 		var imagePathsStr *string
-		if err := rows.Scan(&sighting.ID, &timestampStr, &createdAtStr, &imagePathsStr); err != nil {
+		var favorite int
+		if err := rows.Scan(&sighting.ID, &timestampStr, &createdAtStr, &favorite, &imagePathsStr); err != nil {
 			return nil, fmt.Errorf("failed to scan sighting: %w", err)
 		}
 		sighting.Timestamp = parseTimestamp(timestampStr)
 		sighting.CreatedAt = parseTimestamp(createdAtStr)
+		sighting.Favorite = favorite == 1
 
 		// Parse comma-separated image paths
 		if imagePathsStr != nil && *imagePathsStr != "" {
@@ -243,13 +319,35 @@ func (s *SightingService) GetSightings(limit, offset int) ([]Sighting, error) {
 }
 
 // GetSightingCount returns the total number of sightings
-func (s *SightingService) GetSightingCount() (int, error) {
+func (s *SightingService) GetSightingCount(filters SightingFilters) (int, error) {
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM sightings").Scan(&count)
+	whereClause, args := buildSightingFilterWhere(filters)
+	err := s.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM sightings s %s", whereClause), args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count sightings: %w", err)
 	}
 	return count, nil
+}
+
+func (s *SightingService) SetFavorite(id int64, favorite bool) (*Sighting, error) {
+	favoriteValue := 0
+	if favorite {
+		favoriteValue = 1
+	}
+
+	result, err := s.db.Exec("UPDATE sightings SET favorite = ? WHERE id = ?", favoriteValue, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update favorite: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check favorite update result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("sighting not found")
+	}
+
+	return &Sighting{ID: id, Favorite: favorite}, nil
 }
 
 // GetImagePath returns the full path to a sighting's image

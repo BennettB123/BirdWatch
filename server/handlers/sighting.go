@@ -14,6 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type updateSightingFavoriteRequest struct {
+	Favorite bool `json:"favorite"`
+}
+
 // HandleCreateSighting handles POST /api/sightings from the Pi
 func HandleCreateSighting(c *gin.Context) {
 	// Parse timestamp
@@ -103,10 +107,15 @@ func HandleGetSightings(c *gin.Context) {
 		offset = 0
 	}
 
+	filters, ok := parseSightingFilters(c)
+	if !ok {
+		return
+	}
+
 	sightingService := services.GetSightingService()
 
 	// Get sightings
-	sightings, err := sightingService.GetSightings(limit, offset)
+	sightings, err := sightingService.GetSightings(limit, offset, filters)
 	if err != nil {
 		log.Printf("Failed to get sightings: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get sightings"})
@@ -114,7 +123,7 @@ func HandleGetSightings(c *gin.Context) {
 	}
 
 	// Get total count
-	total, err := sightingService.GetSightingCount()
+	total, err := sightingService.GetSightingCount(filters)
 	if err != nil {
 		log.Printf("Failed to count sightings: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count sightings"})
@@ -127,6 +136,71 @@ func HandleGetSightings(c *gin.Context) {
 		"limit":     limit,
 		"offset":    offset,
 	})
+}
+
+func parseSightingFilters(c *gin.Context) (services.SightingFilters, bool) {
+	var filters services.SightingFilters
+
+	favoritesValue := c.Query("favorites")
+	if favoritesValue == "true" || favoritesValue == "1" {
+		filters.FavoritesOnly = true
+	} else if favoritesValue != "" && favoritesValue != "false" && favoritesValue != "0" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "favorites must be true or false"})
+		return filters, false
+	}
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	if (startDateStr == "") != (endDateStr == "") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "start_date and end_date must be provided together"})
+		return filters, false
+	}
+
+	if startDateStr != "" {
+		startDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "start_date must use YYYY-MM-DD format"})
+			return filters, false
+		}
+		endDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "end_date must use YYYY-MM-DD format"})
+			return filters, false
+		}
+		if endDate.Before(startDate) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "end_date must be on or after start_date"})
+			return filters, false
+		}
+		filters.StartDate = &startDate
+		filters.EndDate = &endDate
+	}
+
+	return filters, true
+}
+
+// HandleUpdateSightingFavorite handles PATCH /api/sightings/:id/favorite
+func HandleUpdateSightingFavorite(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sighting ID"})
+		return
+	}
+
+	var request updateSightingFavoriteRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "favorite is required"})
+		return
+	}
+
+	sightingService := services.GetSightingService()
+	sighting, err := sightingService.SetFavorite(id, request.Favorite)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "sighting not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, sighting)
 }
 
 // HandleGetSightingImage handles GET /api/sightings/images/:filename
